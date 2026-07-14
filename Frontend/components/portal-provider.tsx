@@ -2,11 +2,19 @@
 
 import * as React from 'react'
 import type { Pedido, Producto, Sede } from '@/lib/types'
-import { productosMock, sedesMock } from '@/lib/mock-data'
+import { pedidosMock, productosMock, sedesMock } from '@/lib/mock-data'
 
 interface PortalContextValue {
   sedes: Sede[]
   productos: Producto[]
+  /** Store central de pedidos (todas las vistas leen de aquí). */
+  pedidos: Pedido[]
+  /** Transición 'en_construccion' → 'solicitado'. Ignora otros estados. */
+  solicitarPedido: (id: string) => void
+  /** Transición 'solicitado' → 'aprobado'. Ignora otros estados. */
+  aprobarPedido: (id: string) => void
+  /** Actualiza campos de un pedido. El estado solo cambia vía las transiciones. */
+  actualizarPedido: (id: string, patch: Partial<Pedido>) => void
   addSede: (sede: Omit<Sede, 'id'>) => void
   updateSede: (id: string, sede: Omit<Sede, 'id'>) => void
   deleteSede: (id: string) => void
@@ -38,6 +46,7 @@ function uid() {
 export function PortalProvider({ children }: { children: React.ReactNode }) {
   const [sedes, setSedes] = React.useState<Sede[]>(sedesMock)
   const [productos] = React.useState<Producto[]>(productosMock)
+  const [pedidos, setPedidos] = React.useState<Pedido[]>(pedidosMock)
   const borradorRef = React.useRef<Pedido[] | null>(null)
   // Espejo del borrador en construcción + banderas para el flujo "crear sede".
   const borradorPedidosRef = React.useRef<Pedido[] | null>(null)
@@ -75,6 +84,36 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     return borradorPedidosRef.current
   }, [])
 
+  const solicitarPedido = React.useCallback((id: string) => {
+    setPedidos((prev) =>
+      prev.map((p): Pedido =>
+        p.id === id && p.estado === 'en_construccion'
+          ? { ...p, estado: 'solicitado' }
+          : p,
+      ),
+    )
+  }, [])
+
+  const aprobarPedido = React.useCallback((id: string) => {
+    setPedidos((prev) =>
+      prev.map((p): Pedido =>
+        p.id === id && p.estado === 'solicitado'
+          ? { ...p, estado: 'aprobado' }
+          : p,
+      ),
+    )
+  }, [])
+
+  const actualizarPedido = React.useCallback(
+    (id: string, patch: Partial<Pedido>) => {
+      // Las transiciones de estado solo ocurren vía solicitarPedido/aprobarPedido.
+      const resto = { ...patch }
+      delete resto.estado
+      setPedidos((prev) => prev.map((p) => (p.id === id ? { ...p, ...resto } : p)))
+    },
+    [],
+  )
+
   const addSede = React.useCallback((sede: Omit<Sede, 'id'>) => {
     setSedes((prev) => [{ ...sede, id: uid() }, ...prev])
   }, [])
@@ -104,6 +143,10 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     () => ({
       sedes,
       productos,
+      pedidos,
+      solicitarPedido,
+      aprobarPedido,
+      actualizarPedido,
       addSede,
       updateSede,
       deleteSede,
@@ -119,6 +162,10 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     [
       sedes,
       productos,
+      pedidos,
+      solicitarPedido,
+      aprobarPedido,
+      actualizarPedido,
       addSede,
       updateSede,
       deleteSede,

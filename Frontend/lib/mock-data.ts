@@ -1,4 +1,5 @@
-import type { Producto, Sede } from './types'
+import type { Pedido, Producto, Sede } from './types'
+import { datosEntregaVacios, datosRetiraVacios } from './types'
 
 /** Usuario mock de la sesión actual (prototipo sin auth real). */
 export const clienteActualMock = {
@@ -193,5 +194,132 @@ export const sedesMock: Sede[] = [
     ciudad: 'Cali',
     contactoNombre: 'Andrea Lozano',
     contactoTelefono: '3157654321',
+  },
+]
+
+/**
+ * Pedidos semilla del store central: cubren los tres estados y varios
+ * clientes para poder probar filtros en las vistas de Servicio/Admin.
+ */
+export const pedidosMock: Pedido[] = [
+  {
+    id: 'ped1',
+    numero: 'PED-2026-0101',
+    estado: 'aprobado',
+    clienteId: 'c1',
+    clienteNombre: 'Constructora Restrepo',
+    fechaCreacion: '2026-06-28T09:15:00.000Z',
+    tipoProducto: 'saco',
+    metodoDespacho: 'entregar',
+    datosEntrega: {
+      sedeId: 's1',
+      ordenCompra: 'OC-4410',
+      nombreRecibe: 'Marcela Ríos',
+      celular: '3104567890',
+      correo: 'mrios@restrepo.co',
+      necesitaEstiba: true,
+      necesitaDescarga: true,
+      observaciones: '',
+    },
+    datosRetira: datosRetiraVacios(),
+    items: [
+      { productoId: 'p1', cantidad: 200, fechaEntrega: '2026-07-03' },
+      { productoId: 'p2', cantidad: 80, fechaEntrega: '2026-07-03' },
+    ],
+  },
+  {
+    id: 'ped2',
+    numero: 'PED-2026-0114',
+    estado: 'aprobado',
+    clienteId: 'c2',
+    clienteNombre: 'Ferretería El Cóndor',
+    fechaCreacion: '2026-07-01T14:40:00.000Z',
+    tipoProducto: 'saco',
+    metodoDespacho: 'retira',
+    datosEntrega: datosEntregaVacios(),
+    datosRetira: {
+      sedeId: 's2',
+      ordenCompra: 'OC-8821',
+      nombreConductor: 'Pedro Salazar',
+      cedula: '79456123',
+      placa: 'XKD421',
+      celular: '3159871234',
+      necesitaEstiba: false,
+      observaciones: 'Retira en la mañana',
+    },
+    items: [{ productoId: 'p7', cantidad: 60, fechaEntrega: '2026-07-06' }],
+  },
+  {
+    id: 'ped3',
+    numero: 'PED-2026-0127',
+    estado: 'solicitado',
+    clienteId: 'c1',
+    clienteNombre: 'Constructora Restrepo',
+    fechaCreacion: '2026-07-08T11:05:00.000Z',
+    tipoProducto: 'granel',
+    metodoDespacho: 'entregar',
+    datosEntrega: {
+      sedeId: 's3',
+      ordenCompra: 'OC-4472',
+      nombreRecibe: 'Julián Vélez',
+      celular: '3009876543',
+      correo: 'jvelez@restrepo.co',
+      necesitaEstiba: false,
+      necesitaDescarga: false,
+      observaciones: 'Coordinar ingreso de tractomula',
+    },
+    datosRetira: datosRetiraVacios(),
+    items: [{ productoId: 'p10', cantidad: 34, fechaEntrega: '2026-07-18' }],
+  },
+  {
+    id: 'ped4',
+    numero: 'PED-2026-0133',
+    estado: 'solicitado',
+    clienteId: 'c3',
+    clienteNombre: 'Obras Civiles del Valle',
+    fechaCreacion: '2026-07-10T16:20:00.000Z',
+    tipoProducto: 'saco',
+    metodoDespacho: 'entregar',
+    datosEntrega: {
+      sedeId: 's4',
+      ordenCompra: 'OC-1207',
+      nombreRecibe: 'Andrea Lozano',
+      celular: '3157654321',
+      correo: 'alozano@ocvalle.com',
+      necesitaEstiba: true,
+      necesitaDescarga: false,
+      observaciones: '',
+    },
+    datosRetira: datosRetiraVacios(),
+    items: [
+      { productoId: 'p8', cantidad: 45, fechaEntrega: '2026-07-20' },
+      { productoId: 'p9', cantidad: 30, fechaEntrega: '2026-07-20' },
+    ],
+  },
+  {
+    id: 'ped5',
+    numero: 'PED-2026-0140',
+    estado: 'en_construccion',
+    clienteId: 'c1',
+    clienteNombre: 'Constructora Restrepo',
+    fechaCreacion: '2026-07-13T08:30:00.000Z',
+    tipoProducto: 'saco',
+    metodoDespacho: null,
+    datosEntrega: datosEntregaVacios(),
+    datosRetira: datosRetiraVacios(),
+    items: [{ productoId: 'p3', cantidad: 25, fechaEntrega: null }],
+  },
+  {
+    id: 'ped6',
+    numero: 'PED-2026-0142',
+    estado: 'en_construccion',
+    clienteId: 'c2',
+    clienteNombre: 'Ferretería El Cóndor',
+    fechaCreacion: '2026-07-13T17:55:00.000Z',
+    tipoProducto: null,
+    metodoDespacho: null,
+    datosEntrega: datosEntregaVacios(),
+    datosRetira: datosRetiraVacios(),
+    items: [],
   },
 ]

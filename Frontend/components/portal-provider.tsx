@@ -18,6 +18,7 @@ interface PortalContextValue {
   aprobarPedido: (id: string) => void
   /** Actualiza campos de un pedido. El estado solo cambia vía las transiciones. */
   actualizarPedido: (id: string, patch: Partial<Pedido>) => void
+  getPedido: (id: string) => Pedido | undefined
   addSede: (sede: Omit<Sede, 'id'>) => void
   updateSede: (id: string, sede: Omit<Sede, 'id'>) => void
   deleteSede: (id: string) => void
@@ -118,6 +119,11 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     [],
   )
 
+  const getPedido = React.useCallback(
+    (id: string) => pedidos.find((p) => p.id === id),
+    [pedidos],
+  )
+
   const addSede = React.useCallback((sede: Omit<Sede, 'id'>) => {
     setSedes((prev) => [{ ...sede, id: uid() }, ...prev])
   }, [])
@@ -153,6 +159,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       solicitarPedido,
       aprobarPedido,
       actualizarPedido,
+      getPedido,
       addSede,
       updateSede,
       deleteSede,
@@ -174,6 +181,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       solicitarPedido,
       aprobarPedido,
       actualizarPedido,
+      getPedido,
       addSede,
       updateSede,
       deleteSede,

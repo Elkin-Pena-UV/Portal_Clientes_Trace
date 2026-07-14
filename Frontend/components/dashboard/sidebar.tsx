@@ -125,6 +125,18 @@ function agruparItems(rol: Rol): Record<string, SidebarItem[]> {
   return grouped
 }
 
+/**
+ * Devuelve el href del item que debe marcarse activo: el match más específico.
+ * Evita que rutas índice (p.ej. /servicio) se activen en sus hijos (/servicio/pedidos).
+ */
+function getActiveHref(pathname: string, items: SidebarItem[]): string | null {
+  const matches = items.filter(
+    (item) => pathname === item.href || pathname.startsWith(item.href + '/'),
+  )
+  if (matches.length === 0) return null
+  return matches.reduce((a, b) => (b.href.length > a.href.length ? b : a)).href
+}
+
 /** Switcher temporal de rol, solo para desarrollo (no es auth real). */
 function RolSwitcher() {
   const { rol, setRol } = usePortal()
@@ -165,6 +177,7 @@ export function Sidebar() {
   }
 
   const groups = React.useMemo(() => agruparItems(rol), [rol])
+  const activeHref = getActiveHref(pathname, sidebarItems)
 
   const sidebarWidth = isCollapsed ? 'w-16' : 'w-56'
   
@@ -217,9 +230,7 @@ export function Sidebar() {
             )}
             <div className="space-y-1">
               {items.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (pathname.startsWith(item.href) && item.href !== '/')
+                const isActive = item.href === activeHref
 
                 return (
                   <Link
@@ -324,9 +335,7 @@ export function Sidebar() {
             </div>
             <div className="space-y-1">
               {items.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (pathname.startsWith(item.href) && item.href !== '/')
+                const isActive = item.href === activeHref
 
                 return (
                   <Link
@@ -416,6 +425,7 @@ export function SidebarMobileContent({ onClose = () => {} }: SidebarMobileConten
   const { rol } = usePortal()
 
   const groups = React.useMemo(() => agruparItems(rol), [rol])
+  const activeHref = getActiveHref(pathname, sidebarItems)
 
   return (
     <>
@@ -447,9 +457,7 @@ export function SidebarMobileContent({ onClose = () => {} }: SidebarMobileConten
             </div>
             <div className="space-y-1">
               {groupItems.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (pathname.startsWith(item.href) && item.href !== '/')
+                const isActive = item.href === activeHref
 
                 return (
                   <Link

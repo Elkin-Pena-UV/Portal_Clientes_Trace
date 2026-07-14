@@ -16,8 +16,9 @@ export default function PreviewListadoPage() {
     <DashboardLayout>
       <div className="flex flex-col gap-8">
         <div className="rounded-lg border border-dashed border-orange-400 bg-orange-50 p-3 text-sm text-orange-800">
-          Harness temporal de desarrollo para <code>ListadoPedidos</code>. Se
-          elimina al crear las páginas reales de Servicio/Admin.
+          Harness temporal de desarrollo para <code>ListadoPedidos</code> (Fase
+          2 revisada: columnas de la pantalla real de Ventas). Se elimina al
+          crear las páginas reales de Servicio/Admin.
         </div>
 
         <section className="flex flex-col gap-3">
@@ -32,7 +33,10 @@ export default function PreviewListadoPage() {
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">modo=&quot;supervision&quot;</h2>
+          <h2 className="text-lg font-semibold">
+            modo=&quot;supervision&quot; · sin filtro inicial (todas las
+            columnas, borradores con acción Editar)
+          </h2>
           <ListadoPedidos modo="supervision" basePath="#" />
         </section>
       </div>

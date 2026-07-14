@@ -63,8 +63,29 @@ export interface ItemPedido {
   fechaEntrega: string | null
 }
 
+/**
+ * Ciclo de vida de un pedido. Extensible: los estados posteriores
+ * (despacho, entrega, etc.) se agregan aquí cuando existan sus vistas.
+ */
+export type EstadoPedido = 'en_construccion' | 'solicitado' | 'aprobado'
+
+export const ESTADO_LABEL: Record<EstadoPedido, string> = {
+  en_construccion: 'En construcción',
+  solicitado: 'Solicitado',
+  aprobado: 'Aprobado',
+}
+
+export type Rol = 'cliente' | 'servicio' | 'admin'
+
 export interface Pedido {
   id: string
+  /** Número visible del pedido, ej: "PED-2026-0412" */
+  numero: string
+  estado: EstadoPedido
+  clienteId: string
+  clienteNombre: string
+  /** Fecha de creación en ISO 8601 */
+  fechaCreacion: string
   tipoProducto: TipoProducto | null
   metodoDespacho: MetodoDespacho | null
   datosEntrega: DatosEntrega

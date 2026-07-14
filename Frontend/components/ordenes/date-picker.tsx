@@ -24,6 +24,8 @@ interface DatePickerProps {
   compact?: boolean
   /** Texto a mostrar cuando no hay fecha seleccionada. */
   placeholder?: string
+  /** Permite elegir fechas pasadas (para filtros); por defecto se bloquean. */
+  permitirPasadas?: boolean
 }
 
 export function DatePicker({
@@ -33,6 +35,7 @@ export function DatePicker({
   id,
   compact,
   placeholder = 'Seleccionar fecha',
+  permitirPasadas = false,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -70,7 +73,7 @@ export function DatePicker({
               setOpen(false)
             }
           }}
-          disabled={{ before: hoyInicio() }}
+          disabled={permitirPasadas ? undefined : { before: hoyInicio() }}
           locale={es}
           autoFocus
         />

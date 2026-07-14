@@ -2,6 +2,7 @@
 
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { RoleGuard } from '@/components/role-guard'
+import { ListadoPedidos } from '@/components/pedidos/listado-pedidos'
 
 export default function ServicioPedidosPage() {
   return (
@@ -10,9 +11,11 @@ export default function ServicioPedidosPage() {
       subtitle="Gestión de la cola de pedidos"
     >
       <RoleGuard rol="servicio">
-        <p className="text-sm text-muted-foreground">
-          Listado de pedidos (en construcción).
-        </p>
+        <ListadoPedidos
+          modo="gestion"
+          basePath="/servicio/pedidos"
+          estadoInicial="solicitado"
+        />
       </RoleGuard>
     </DashboardLayout>
   )

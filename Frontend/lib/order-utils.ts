@@ -1,5 +1,6 @@
 import type { Pedido, Producto } from './types'
 import { datosEntregaVacios, datosRetiraVacios } from './types'
+import { clienteActualMock } from './mock-data'
 
 export interface Totales {
   neto: number
@@ -60,9 +61,20 @@ export function fechasCompletas(pedido: Pedido): boolean {
   return pedido.items.every((i) => !!i.fechaEntrega)
 }
 
+/** Genera un número visible de pedido, ej: "PED-2026-4831". */
+export function generarNumeroPedido(): string {
+  const seq = Math.floor(1000 + Math.random() * 9000)
+  return `PED-${new Date().getFullYear()}-${seq}`
+}
+
 export function nuevoPedido(): Pedido {
   return {
     id: Math.random().toString(36).slice(2, 10),
+    numero: generarNumeroPedido(),
+    estado: 'en_construccion',
+    clienteId: clienteActualMock.clienteId,
+    clienteNombre: clienteActualMock.clienteNombre,
+    fechaCreacion: new Date().toISOString(),
     tipoProducto: null,
     metodoDespacho: null,
     datosEntrega: datosEntregaVacios(),
@@ -75,6 +87,11 @@ export function nuevoPedido(): Pedido {
 export function clonarPedido(prev: Pedido): Pedido {
   return {
     id: Math.random().toString(36).slice(2, 10),
+    numero: generarNumeroPedido(),
+    estado: 'en_construccion',
+    clienteId: prev.clienteId,
+    clienteNombre: prev.clienteNombre,
+    fechaCreacion: new Date().toISOString(),
     tipoProducto: prev.tipoProducto,
     metodoDespacho: prev.metodoDespacho,
     datosEntrega: { ...prev.datosEntrega },

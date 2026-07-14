@@ -1,5 +1,12 @@
 import type { Producto, Sede } from './types'
 
+/** Usuario mock de la sesión actual (prototipo sin auth real). */
+export const clienteActualMock = {
+  clienteId: 'c1',
+  clienteNombre: 'Constructora Restrepo',
+  usuarioNombre: 'María Restrepo',
+}
+
 export const productosMock: Producto[] = [
   // --- Cemento en saco ---
   {

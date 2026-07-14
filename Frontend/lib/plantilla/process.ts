@@ -7,7 +7,8 @@ import type {
   Sede,
 } from '@/lib/types'
 import { datosEntregaVacios, datosRetiraVacios } from '@/lib/types'
-import { hoyInicio } from '@/lib/order-utils'
+import { generarNumeroPedido, hoyInicio } from '@/lib/order-utils'
+import { clienteActualMock } from '@/lib/mock-data'
 import { toFechaISO } from '@/lib/format'
 import {
   COLUMNAS,
@@ -351,6 +352,11 @@ export function procesarFilas(
     }))
     const pedido: Pedido = {
       id: uid(),
+      numero: generarNumeroPedido(),
+      estado: 'en_construccion',
+      clienteId: clienteActualMock.clienteId,
+      clienteNombre: clienteActualMock.clienteNombre,
+      fechaCreacion: new Date().toISOString(),
       tipoProducto: base.producto.tipo,
       metodoDespacho: base.metodo,
       datosEntrega:

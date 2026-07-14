@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Pencil, Search } from 'lucide-react'
+import { Columns3, Pencil, Search } from 'lucide-react'
 import type { EstadoPedido, Pedido, Sede } from '@/lib/types'
 import { ESTADO_CREDITO_LABEL, ESTADO_LABEL } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
@@ -12,6 +12,12 @@ import { EstadoBadge } from '@/components/pedidos/estado-badge'
 import { DatePicker } from '@/components/ordenes/date-picker'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -53,6 +59,173 @@ function sedeDePedido(
   return sedeId ? getSede(sedeId) : undefined
 }
 
+// ---------------------------------------------------------------------------
+// Definición única de columnas: de aquí derivan el encabezado, las celdas y
+// el selector de columnas visibles. No duplicar esta lista en otro sitio.
+// ---------------------------------------------------------------------------
+
+type ColumnaKey =
+  | 'numero'
+  | 'pvc'
+  | 'estadoCredito'
+  | 'formaPago'
+  | 'plazoCredito'
+  | 'estado'
+  | 'fechaSolicitud'
+  | 'clienteNombre'
+  | 'clienteId'
+  | 'puntoEntrega'
+  | 'creadorEmail'
+  | 'solicitados'
+  | 'total'
+  | 'moneda'
+  | 'accion'
+
+type VisibilidadColumnas = Record<ColumnaKey, boolean>
+
+/** Contexto de una fila, ya resuelto (sede, totales) para las celdas. */
+interface CeldaCtx {
+  pedido: Pedido
+  sede: Sede | undefined
+  total: number
+  basePath: string
+}
+
+interface ColumnaDef {
+  key: ColumnaKey
+  label: string
+  /** Cod y Acción no son ocultables: sin identificador ni acción la fila es inútil. */
+  hideable: boolean
+  defaultVisible: boolean
+  headClass?: string
+  cellClass?: string
+  renderCell: (ctx: CeldaCtx) => React.ReactNode
+}
+
+const COLUMNAS: ColumnaDef[] = [
+  {
+    key: 'numero',
+    label: 'Cod',
+    hideable: false,
+    defaultVisible: true,
+    cellClass: 'font-semibold text-[#00359a]',
+    renderCell: ({ pedido }) => pedido.numero,
+  },
+  {
+    key: 'pvc',
+    label: 'Exportado',
+    hideable: true,
+    defaultVisible: false,
+    renderCell: ({ pedido }) => pedido.pvc ?? '—',
+  },
+  {
+    key: 'estadoCredito',
+    label: 'Estado crédito',
+    hideable: true,
+    defaultVisible: false,
+    renderCell: ({ pedido }) => ESTADO_CREDITO_LABEL[pedido.estadoCredito],
+  },
+  {
+    key: 'formaPago',
+    label: 'Forma pago',
+    hideable: true,
+    defaultVisible: false,
+    renderCell: ({ pedido }) => pedido.formaPago,
+  },
+  {
+    key: 'plazoCredito',
+    label: 'Plazo crédito',
+    hideable: true,
+    defaultVisible: false,
+    renderCell: ({ pedido }) => pedido.plazoCredito,
+  },
+  {
+    key: 'estado',
+    label: 'Estado',
+    hideable: true,
+    defaultVisible: true,
+    renderCell: ({ pedido }) => <EstadoBadge estado={pedido.estado} />,
+  },
+  {
+    key: 'fechaSolicitud',
+    label: 'Solicitado',
+    hideable: true,
+    defaultVisible: true,
+    renderCell: ({ pedido }) =>
+      pedido.fechaSolicitud
+        ? formatFecha(pedido.fechaSolicitud.slice(0, 10))
+        : '—',
+  },
+  {
+    key: 'clienteNombre',
+    label: 'Tercero',
+    hideable: true,
+    defaultVisible: true,
+    renderCell: ({ pedido }) => pedido.clienteNombre,
+  },
+  {
+    key: 'clienteId',
+    label: 'Cod cliente',
+    hideable: true,
+    defaultVisible: false,
+    renderCell: ({ pedido }) => pedido.clienteId,
+  },
+  {
+    key: 'puntoEntrega',
+    label: 'Punto entrega',
+    hideable: true,
+    defaultVisible: true,
+    renderCell: ({ sede }) => sede?.nombre ?? '—',
+  },
+  {
+    key: 'creadorEmail',
+    label: 'Creador',
+    hideable: true,
+    defaultVisible: false,
+    renderCell: ({ pedido }) => pedido.creadorEmail,
+  },
+  {
+    key: 'solicitados',
+    label: 'Solicitados',
+    hideable: true,
+    defaultVisible: true,
+    headClass: 'text-right',
+    cellClass: 'text-right tabular-nums',
+    renderCell: ({ pedido }) => totalUnidades(pedido),
+  },
+  {
+    key: 'total',
+    label: 'Total',
+    hideable: true,
+    defaultVisible: true,
+    headClass: 'text-right',
+    cellClass: 'text-right font-medium tabular-nums',
+    renderCell: ({ total }) => formatCOP(total),
+  },
+  {
+    key: 'moneda',
+    label: 'Moneda',
+    hideable: true,
+    defaultVisible: false,
+    renderCell: ({ pedido }) => pedido.moneda,
+  },
+  {
+    key: 'accion',
+    label: 'Acción',
+    hideable: false,
+    defaultVisible: true,
+    headClass: 'text-right',
+    cellClass: 'text-right',
+    renderCell: ({ pedido, basePath }) => (
+      <AccionLink pedido={pedido} basePath={basePath} />
+    ),
+  },
+]
+
+const VISIBILIDAD_DEFAULT = Object.fromEntries(
+  COLUMNAS.map((c) => [c.key, c.defaultVisible]),
+) as VisibilidadColumnas
+
 export function ListadoPedidos({
   modo,
   basePath,
@@ -65,6 +238,45 @@ export function ListadoPedidos({
   const [clienteId, setClienteId] = React.useState<string>('todos')
   const [desde, setDesde] = React.useState<string | null>(null)
   const [hasta, setHasta] = React.useState<string | null>(null)
+
+  // Visibilidad de columnas: preferencia por modo en localStorage. Se lee
+  // tras montar (patrón del sidebar) para evitar hydration mismatch.
+  const storageKey = `listado-columnas-${modo}`
+  const [visibles, setVisibles] =
+    React.useState<VisibilidadColumnas>(VISIBILIDAD_DEFAULT)
+
+  React.useEffect(() => {
+    const stored = localStorage.getItem(storageKey)
+    if (!stored) {
+      setVisibles(VISIBILIDAD_DEFAULT)
+      return
+    }
+    try {
+      const parsed = JSON.parse(stored) as Partial<VisibilidadColumnas>
+      // Merge sobre defaults (tolera columnas nuevas) y fuerza las fijas.
+      setVisibles({
+        ...VISIBILIDAD_DEFAULT,
+        ...parsed,
+        numero: true,
+        accion: true,
+      })
+    } catch {
+      setVisibles(VISIBILIDAD_DEFAULT)
+    }
+  }, [storageKey])
+
+  const toggleColumna = (key: ColumnaKey, checked: boolean) => {
+    const next = { ...visibles, [key]: checked }
+    setVisibles(next)
+    localStorage.setItem(storageKey, JSON.stringify(next))
+  }
+
+  const restablecerColumnas = () => {
+    localStorage.removeItem(storageKey)
+    setVisibles(VISIBILIDAD_DEFAULT)
+  }
+
+  const columnasVisibles = COLUMNAS.filter((c) => visibles[c.key])
 
   const clientes = React.useMemo(() => {
     const porId = new Map<string, string>()
@@ -113,9 +325,16 @@ export function ListadoPedidos({
     setHasta(null)
   }
 
+  const ctxDe = (pedido: Pedido): CeldaCtx => ({
+    pedido,
+    sede: sedeDePedido(pedido, getSede),
+    total: totalesPedido(pedido, getProducto).total,
+    basePath,
+  })
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Barra de filtros */}
+      {/* Barra de filtros + selector de columnas */}
       <div className="flex flex-wrap items-end gap-3">
         <FiltroCampo label="Estado">
           <Select
@@ -182,6 +401,54 @@ export function ListadoPedidos({
             Limpiar filtros
           </Button>
         )}
+
+        <div className="ml-auto">
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Configurar columnas visibles"
+                  className="gap-2"
+                />
+              }
+            >
+              <Columns3 className="size-4" />
+              Columnas
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-3">
+              <div className="flex flex-col gap-2.5">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Columnas visibles
+                </span>
+                {COLUMNAS.filter((c) => c.hideable).map((c) => (
+                  <label
+                    key={c.key}
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={visibles[c.key]}
+                      onCheckedChange={(checked) =>
+                        toggleColumna(c.key, Boolean(checked))
+                      }
+                      aria-label={`Mostrar columna ${c.label}`}
+                    />
+                    {c.label}
+                  </label>
+                ))}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={restablecerColumnas}
+                  className="mt-1 self-start"
+                >
+                  Restablecer
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       {/* Tabla en desktop (scroll horizontal: son muchas columnas) */}
@@ -190,85 +457,42 @@ export function ListadoPedidos({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <HeadCell>Cod</HeadCell>
-                <HeadCell>Exportado</HeadCell>
-                <HeadCell>Estado crédito</HeadCell>
-                <HeadCell>Forma pago</HeadCell>
-                <HeadCell>Plazo crédito</HeadCell>
-                <HeadCell>Estado</HeadCell>
-                <HeadCell>Solicitado</HeadCell>
-                <HeadCell>Tercero</HeadCell>
-                <HeadCell>Cod cliente</HeadCell>
-                <HeadCell>Punto entrega</HeadCell>
-                <HeadCell>Creador</HeadCell>
-                <HeadCell className="text-right">Solicitados</HeadCell>
-                <HeadCell className="text-right">Total</HeadCell>
-                <HeadCell>Moneda</HeadCell>
-                <HeadCell className="text-right">Acción</HeadCell>
+                {columnasVisibles.map((c) => (
+                  <TableHead
+                    key={c.key}
+                    className={`text-xs font-semibold uppercase text-muted-foreground whitespace-nowrap ${c.headClass ?? ''}`}
+                  >
+                    {c.label}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtrados.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell
-                    colSpan={15}
+                    colSpan={columnasVisibles.length}
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
                     No hay pedidos para estos filtros.
                   </TableCell>
                 </TableRow>
               ) : (
-                filtrados.map((pedido) => (
-                  <TableRow key={pedido.id} className="hover:bg-gray-50">
-                    <TableCell className="font-semibold text-[#00359a] whitespace-nowrap">
-                      {pedido.numero}
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {pedido.pvc ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {ESTADO_CREDITO_LABEL[pedido.estadoCredito]}
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {pedido.formaPago}
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {pedido.plazoCredito}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <EstadoBadge estado={pedido.estado} />
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {pedido.fechaSolicitud
-                        ? formatFecha(pedido.fechaSolicitud.slice(0, 10))
-                        : '—'}
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {pedido.clienteNombre}
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {pedido.clienteId}
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {sedeDePedido(pedido, getSede)?.nombre ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {pedido.creadorEmail}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums whitespace-nowrap">
-                      {totalUnidades(pedido)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm font-medium tabular-nums whitespace-nowrap">
-                      {formatCOP(totalesPedido(pedido, getProducto).total)}
-                    </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">
-                      {pedido.moneda}
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      <AccionLink pedido={pedido} basePath={basePath} />
-                    </TableCell>
-                  </TableRow>
-                ))
+                filtrados.map((pedido) => {
+                  const ctx = ctxDe(pedido)
+                  return (
+                    <TableRow key={pedido.id} className="hover:bg-gray-50">
+                      {columnasVisibles.map((c) => (
+                        <TableCell
+                          key={c.key}
+                          className={`text-sm whitespace-nowrap ${c.cellClass ?? ''}`}
+                        >
+                          {c.renderCell(ctx)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
@@ -285,10 +509,8 @@ export function ListadoPedidos({
           filtrados.map((pedido) => (
             <PedidoCardMovil
               key={pedido.id}
-              pedido={pedido}
-              total={totalesPedido(pedido, getProducto).total}
-              sede={sedeDePedido(pedido, getSede)}
-              basePath={basePath}
+              ctx={ctxDe(pedido)}
+              visibles={visibles}
             />
           ))
         )}
@@ -309,22 +531,6 @@ function FiltroCampo({
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       {children}
     </div>
-  )
-}
-
-function HeadCell({
-  className,
-  children,
-}: {
-  className?: string
-  children: React.ReactNode
-}) {
-  return (
-    <TableHead
-      className={`text-xs font-semibold uppercase text-muted-foreground whitespace-nowrap ${className ?? ''}`}
-    >
-      {children}
-    </TableHead>
   )
 }
 
@@ -352,51 +558,82 @@ function AccionLink({
   )
 }
 
+/** Claves que la tarjeta móvil muestra en la grilla secundaria. */
+const SECUNDARIAS_MOVIL: ColumnaKey[] = [
+  'pvc',
+  'estadoCredito',
+  'formaPago',
+  'plazoCredito',
+  'clienteId',
+  'puntoEntrega',
+  'creadorEmail',
+  'solicitados',
+  'moneda',
+]
+
 function PedidoCardMovil({
-  pedido,
-  total,
-  sede,
-  basePath,
+  ctx,
+  visibles,
 }: {
-  pedido: Pedido
-  total: number
-  sede: Sede | undefined
-  basePath: string
+  ctx: CeldaCtx
+  visibles: VisibilidadColumnas
 }) {
+  const { pedido, sede, total, basePath } = ctx
+  const haySecundarias = SECUNDARIAS_MOVIL.some((k) => visibles[k])
+
   return (
     <Card className="gap-3 p-4">
       <div className="flex items-center justify-between gap-2">
         <span className="font-semibold text-[#00359a]">{pedido.numero}</span>
-        <EstadoBadge estado={pedido.estado} />
+        {visibles.estado && <EstadoBadge estado={pedido.estado} />}
       </div>
-      <div className="flex flex-col gap-1 text-sm">
-        <span className="font-medium">{pedido.clienteNombre}</span>
-        <span className="text-muted-foreground">
-          {pedido.fechaSolicitud
-            ? `Solicitado: ${formatFecha(pedido.fechaSolicitud.slice(0, 10))}`
-            : 'Sin solicitar'}
-        </span>
-      </div>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span>Exportado: {pedido.pvc ?? '—'}</span>
-        <span>Crédito: {ESTADO_CREDITO_LABEL[pedido.estadoCredito]}</span>
-        <span>{pedido.formaPago}</span>
-        <span>{pedido.plazoCredito}</span>
-        <span className="col-span-2 truncate">
-          Punto: {sede?.nombre ?? '—'}
-        </span>
-        <span className="col-span-2 truncate">
-          Creador: {pedido.creadorEmail}
-        </span>
-        <span>
-          Solicitados: {totalUnidades(pedido)}
-        </span>
-        <span>Moneda: {pedido.moneda}</span>
-      </div>
+      {(visibles.clienteNombre || visibles.fechaSolicitud) && (
+        <div className="flex flex-col gap-1 text-sm">
+          {visibles.clienteNombre && (
+            <span className="font-medium">{pedido.clienteNombre}</span>
+          )}
+          {visibles.fechaSolicitud && (
+            <span className="text-muted-foreground">
+              {pedido.fechaSolicitud
+                ? `Solicitado: ${formatFecha(pedido.fechaSolicitud.slice(0, 10))}`
+                : 'Sin solicitar'}
+            </span>
+          )}
+        </div>
+      )}
+      {haySecundarias && (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          {visibles.pvc && <span>Exportado: {pedido.pvc ?? '—'}</span>}
+          {visibles.estadoCredito && (
+            <span>Crédito: {ESTADO_CREDITO_LABEL[pedido.estadoCredito]}</span>
+          )}
+          {visibles.formaPago && <span>{pedido.formaPago}</span>}
+          {visibles.plazoCredito && <span>{pedido.plazoCredito}</span>}
+          {visibles.clienteId && <span>Cod cliente: {pedido.clienteId}</span>}
+          {visibles.puntoEntrega && (
+            <span className="col-span-2 truncate">
+              Punto: {sede?.nombre ?? '—'}
+            </span>
+          )}
+          {visibles.creadorEmail && (
+            <span className="col-span-2 truncate">
+              Creador: {pedido.creadorEmail}
+            </span>
+          )}
+          {visibles.solicitados && (
+            <span>Solicitados: {totalUnidades(pedido)}</span>
+          )}
+          {visibles.moneda && <span>Moneda: {pedido.moneda}</span>}
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2">
-        <span className="font-bold tabular-nums text-primary">
-          {formatCOP(total)}
-        </span>
+        {visibles.total ? (
+          <span className="font-bold tabular-nums text-primary">
+            {formatCOP(total)}
+          </span>
+        ) : (
+          <span />
+        )}
         <AccionLink pedido={pedido} basePath={basePath} />
       </div>
     </Card>

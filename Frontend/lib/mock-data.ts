@@ -204,7 +204,7 @@ export const sedesMock: Sede[] = [
 export const pedidosMock: Pedido[] = [
   {
     id: 'ped1',
-    numero: 'PED-2026-0101',
+    numero: 'T-292313',
     estado: 'aprobado',
     clienteId: 'c1',
     clienteNombre: 'Constructora Restrepo',
@@ -229,7 +229,7 @@ export const pedidosMock: Pedido[] = [
   },
   {
     id: 'ped2',
-    numero: 'PED-2026-0114',
+    numero: 'T-292208',
     estado: 'aprobado',
     clienteId: 'c2',
     clienteNombre: 'Ferretería El Cóndor',
@@ -251,7 +251,7 @@ export const pedidosMock: Pedido[] = [
   },
   {
     id: 'ped3',
-    numero: 'PED-2026-0127',
+    numero: 'T-291640',
     estado: 'solicitado',
     clienteId: 'c1',
     clienteNombre: 'Constructora Restrepo',
@@ -273,7 +273,7 @@ export const pedidosMock: Pedido[] = [
   },
   {
     id: 'ped4',
-    numero: 'PED-2026-0133',
+    numero: 'T-291786',
     estado: 'solicitado',
     clienteId: 'c3',
     clienteNombre: 'Obras Civiles del Valle',
@@ -298,7 +298,7 @@ export const pedidosMock: Pedido[] = [
   },
   {
     id: 'ped5',
-    numero: 'PED-2026-0140',
+    numero: 'T-292410',
     estado: 'en_construccion',
     clienteId: 'c1',
     clienteNombre: 'Constructora Restrepo',
@@ -311,7 +311,7 @@ export const pedidosMock: Pedido[] = [
   },
   {
     id: 'ped6',
-    numero: 'PED-2026-0142',
+    numero: 'T-290985',
     estado: 'en_construccion',
     clienteId: 'c2',
     clienteNombre: 'Ferretería El Cóndor',

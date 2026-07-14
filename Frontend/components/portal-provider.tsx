@@ -47,6 +47,15 @@ function uid() {
   return Math.random().toString(36).slice(2, 10)
 }
 
+// Contador mock del consecutivo de pedidos solicitados (estilo pantalla real,
+// ej. 269554). Arranca por encima de los números sembrados en mock-data.
+let consecutivoMock = 269560
+
+function siguienteConsecutivo(): string {
+  consecutivoMock += 1
+  return String(consecutivoMock)
+}
+
 export function PortalProvider({ children }: { children: React.ReactNode }) {
   const [rol, setRol] = React.useState<Rol>('cliente')
   const [sedes, setSedes] = React.useState<Sede[]>(sedesMock)
@@ -93,7 +102,13 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     setPedidos((prev) =>
       prev.map((p): Pedido =>
         p.id === id && p.estado === 'en_construccion'
-          ? { ...p, estado: 'solicitado' }
+          ? {
+              ...p,
+              estado: 'solicitado',
+              // El borrador (T_xxxxxx) recibe su consecutivo definitivo.
+              numero: siguienteConsecutivo(),
+              fechaSolicitud: new Date().toISOString(),
+            }
           : p,
       ),
     )

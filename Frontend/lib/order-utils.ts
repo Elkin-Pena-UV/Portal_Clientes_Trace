@@ -61,10 +61,13 @@ export function fechasCompletas(pedido: Pedido): boolean {
   return pedido.items.every((i) => !!i.fechaEntrega)
 }
 
-/** Genera un número visible de pedido, ej: "PED-2026-4831". */
+/**
+ * Genera el número de un borrador, con prefijo T_ (ej: "T_301740").
+ * El consecutivo definitivo (sin prefijo) se asigna en `solicitarPedido`.
+ */
 export function generarNumeroPedido(): string {
-  const seq = Math.floor(1000 + Math.random() * 9000)
-  return `PED-${new Date().getFullYear()}-${seq}`
+  const seq = Math.floor(100000 + Math.random() * 900000)
+  return `T_${seq}`
 }
 
 export function nuevoPedido(): Pedido {

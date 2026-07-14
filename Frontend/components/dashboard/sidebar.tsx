@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   ChevronLeft,
+  ClipboardList,
   Home,
+  LayoutDashboard,
   LogOut,
   Menu,
   Plus,
@@ -94,6 +96,20 @@ const sidebarItems: SidebarItem[] = [
     href: '/sedes',
     icon: <MapPin className="size-5" />,
     roles: ['cliente'],
+  },
+  {
+    group: 'GESTIÓN',
+    label: 'Dashboard',
+    href: '/servicio',
+    icon: <LayoutDashboard className="size-5" />,
+    roles: ['servicio'],
+  },
+  {
+    group: 'GESTIÓN',
+    label: 'Pedidos de ventas',
+    href: '/servicio/pedidos',
+    icon: <ClipboardList className="size-5" />,
+    roles: ['servicio'],
   },
 ]
 

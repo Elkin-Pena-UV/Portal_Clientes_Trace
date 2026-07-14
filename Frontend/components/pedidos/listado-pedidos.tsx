@@ -2,10 +2,11 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import type { EstadoPedido, Pedido } from '@/lib/types'
-import { ESTADO_LABEL } from '@/lib/types'
+import { Pencil, Search } from 'lucide-react'
+import type { EstadoPedido, Pedido, Sede } from '@/lib/types'
+import { ESTADO_CREDITO_LABEL, ESTADO_LABEL } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
-import { totalesPedido } from '@/lib/order-utils'
+import { totalUnidades, totalesPedido } from '@/lib/order-utils'
 import { formatCOP, formatFecha } from '@/lib/format'
 import { EstadoBadge } from '@/components/pedidos/estado-badge'
 import { DatePicker } from '@/components/ordenes/date-picker'
@@ -40,12 +41,24 @@ interface ListadoPedidosProps {
   estadoInicial?: EstadoPedido
 }
 
+/** Sede del pedido según su método de despacho. */
+function sedeDePedido(
+  pedido: Pedido,
+  getSede: (id: string) => Sede | undefined,
+): Sede | undefined {
+  const sedeId =
+    pedido.metodoDespacho === 'retira'
+      ? pedido.datosRetira.sedeId
+      : pedido.datosEntrega.sedeId
+  return sedeId ? getSede(sedeId) : undefined
+}
+
 export function ListadoPedidos({
   modo,
   basePath,
   estadoInicial,
 }: ListadoPedidosProps) {
-  const { pedidos, getProducto } = usePortal()
+  const { pedidos, getProducto, getSede } = usePortal()
   const [estado, setEstado] = React.useState<FiltroEstado>(
     estadoInicial ?? 'todos',
   )
@@ -99,8 +112,6 @@ export function ListadoPedidos({
     setDesde(null)
     setHasta(null)
   }
-
-  const accionLabel = modo === 'gestion' ? 'Gestionar' : 'Ver'
 
   return (
     <div className="flex flex-col gap-4">
@@ -173,58 +184,95 @@ export function ListadoPedidos({
         )}
       </div>
 
-      {/* Tabla en desktop */}
+      {/* Tabla en desktop (scroll horizontal: son muchas columnas) */}
       <Card className="hidden overflow-hidden py-0 md:block">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <HeadCell>Número</HeadCell>
-              <HeadCell>Cliente</HeadCell>
-              <HeadCell>Fecha</HeadCell>
-              <HeadCell>Estado</HeadCell>
-              <HeadCell className="text-right">Total</HeadCell>
-              <HeadCell className="text-right">Acción</HeadCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtrados.length === 0 ? (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableCell
-                  colSpan={6}
-                  className="py-10 text-center text-sm text-muted-foreground"
-                >
-                  No hay pedidos para estos filtros.
-                </TableCell>
+                <HeadCell>Cod</HeadCell>
+                <HeadCell>Exportado</HeadCell>
+                <HeadCell>Estado crédito</HeadCell>
+                <HeadCell>Forma pago</HeadCell>
+                <HeadCell>Plazo crédito</HeadCell>
+                <HeadCell>Estado</HeadCell>
+                <HeadCell>Solicitado</HeadCell>
+                <HeadCell>Tercero</HeadCell>
+                <HeadCell>Cod cliente</HeadCell>
+                <HeadCell>Punto entrega</HeadCell>
+                <HeadCell>Creador</HeadCell>
+                <HeadCell className="text-right">Solicitados</HeadCell>
+                <HeadCell className="text-right">Total</HeadCell>
+                <HeadCell>Moneda</HeadCell>
+                <HeadCell className="text-right">Acción</HeadCell>
               </TableRow>
-            ) : (
-              filtrados.map((pedido) => (
-                <TableRow key={pedido.id} className="hover:bg-gray-50">
-                  <TableCell className="font-semibold text-[#00359a] whitespace-nowrap">
-                    {pedido.numero}
-                  </TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">
-                    {pedido.clienteNombre}
-                  </TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">
-                    {formatFecha(pedido.fechaCreacion.slice(0, 10))}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <EstadoBadge estado={pedido.estado} />
-                  </TableCell>
-                  <TableCell className="text-right text-sm font-medium tabular-nums whitespace-nowrap">
-                    {formatCOP(totalesPedido(pedido, getProducto).total)}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    <AccionLink
-                      href={`${basePath}/${pedido.id}`}
-                      label={accionLabel}
-                    />
+            </TableHeader>
+            <TableBody>
+              {filtrados.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={15}
+                    className="py-10 text-center text-sm text-muted-foreground"
+                  >
+                    No hay pedidos para estos filtros.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                filtrados.map((pedido) => (
+                  <TableRow key={pedido.id} className="hover:bg-gray-50">
+                    <TableCell className="font-semibold text-[#00359a] whitespace-nowrap">
+                      {pedido.numero}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {pedido.pvc ?? '—'}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {ESTADO_CREDITO_LABEL[pedido.estadoCredito]}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {pedido.formaPago}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {pedido.plazoCredito}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <EstadoBadge estado={pedido.estado} />
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {pedido.fechaSolicitud
+                        ? formatFecha(pedido.fechaSolicitud.slice(0, 10))
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {pedido.clienteNombre}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {pedido.clienteId}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {sedeDePedido(pedido, getSede)?.nombre ?? '—'}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {pedido.creadorEmail}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums whitespace-nowrap">
+                      {totalUnidades(pedido)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-medium tabular-nums whitespace-nowrap">
+                      {formatCOP(totalesPedido(pedido, getProducto).total)}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {pedido.moneda}
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <AccionLink pedido={pedido} basePath={basePath} />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       {/* Tarjetas en móvil */}
@@ -239,8 +287,8 @@ export function ListadoPedidos({
               key={pedido.id}
               pedido={pedido}
               total={totalesPedido(pedido, getProducto).total}
-              href={`${basePath}/${pedido.id}`}
-              accionLabel={accionLabel}
+              sede={sedeDePedido(pedido, getSede)}
+              basePath={basePath}
             />
           ))
         )}
@@ -280,13 +328,26 @@ function HeadCell({
   )
 }
 
-function AccionLink({ href, label }: { href: string; label: string }) {
+/** Acción según estado (replica la pantalla real): borrador → Editar, resto → Ver. */
+function AccionLink({
+  pedido,
+  basePath,
+}: {
+  pedido: Pedido
+  basePath: string
+}) {
+  const esBorrador = pedido.estado === 'en_construccion'
   return (
     <Link
-      href={href}
-      className="text-sm font-medium text-[#ff6600] hover:underline"
+      href={`${basePath}/${pedido.id}`}
+      className="inline-flex items-center gap-1 text-sm font-medium text-[#ff6600] hover:underline"
     >
-      {label}
+      {esBorrador ? (
+        <Pencil className="size-3.5" />
+      ) : (
+        <Search className="size-3.5" />
+      )}
+      {esBorrador ? 'Editar' : 'Ver'}
     </Link>
   )
 }
@@ -294,13 +355,13 @@ function AccionLink({ href, label }: { href: string; label: string }) {
 function PedidoCardMovil({
   pedido,
   total,
-  href,
-  accionLabel,
+  sede,
+  basePath,
 }: {
   pedido: Pedido
   total: number
-  href: string
-  accionLabel: string
+  sede: Sede | undefined
+  basePath: string
 }) {
   return (
     <Card className="gap-3 p-4">
@@ -311,14 +372,32 @@ function PedidoCardMovil({
       <div className="flex flex-col gap-1 text-sm">
         <span className="font-medium">{pedido.clienteNombre}</span>
         <span className="text-muted-foreground">
-          {formatFecha(pedido.fechaCreacion.slice(0, 10))}
+          {pedido.fechaSolicitud
+            ? `Solicitado: ${formatFecha(pedido.fechaSolicitud.slice(0, 10))}`
+            : 'Sin solicitar'}
         </span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span>Exportado: {pedido.pvc ?? '—'}</span>
+        <span>Crédito: {ESTADO_CREDITO_LABEL[pedido.estadoCredito]}</span>
+        <span>{pedido.formaPago}</span>
+        <span>{pedido.plazoCredito}</span>
+        <span className="col-span-2 truncate">
+          Punto: {sede?.nombre ?? '—'}
+        </span>
+        <span className="col-span-2 truncate">
+          Creador: {pedido.creadorEmail}
+        </span>
+        <span>
+          Solicitados: {totalUnidades(pedido)}
+        </span>
+        <span>Moneda: {pedido.moneda}</span>
       </div>
       <div className="flex items-center justify-between gap-2">
         <span className="font-bold tabular-nums text-primary">
           {formatCOP(total)}
         </span>
-        <AccionLink href={href} label={accionLabel} />
+        <AccionLink pedido={pedido} basePath={basePath} />
       </div>
     </Card>
   )

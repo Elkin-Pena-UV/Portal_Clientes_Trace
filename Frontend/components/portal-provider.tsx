@@ -1,10 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import type { Pedido, Producto, Sede } from '@/lib/types'
+import type { Pedido, Producto, Rol, Sede } from '@/lib/types'
 import { pedidosMock, productosMock, sedesMock } from '@/lib/mock-data'
 
 interface PortalContextValue {
+  /** Rol activo de la sesión (mock, se cambia con el switcher de desarrollo). */
+  rol: Rol
+  setRol: (rol: Rol) => void
   sedes: Sede[]
   productos: Producto[]
   /** Store central de pedidos (todas las vistas leen de aquí). */
@@ -44,6 +47,7 @@ function uid() {
 }
 
 export function PortalProvider({ children }: { children: React.ReactNode }) {
+  const [rol, setRol] = React.useState<Rol>('cliente')
   const [sedes, setSedes] = React.useState<Sede[]>(sedesMock)
   const [productos] = React.useState<Producto[]>(productosMock)
   const [pedidos, setPedidos] = React.useState<Pedido[]>(pedidosMock)
@@ -141,6 +145,8 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
 
   const value = React.useMemo(
     () => ({
+      rol,
+      setRol,
       sedes,
       productos,
       pedidos,
@@ -160,6 +166,8 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       consumirRestaurarBorrador,
     }),
     [
+      rol,
+      setRol,
       sedes,
       productos,
       pedidos,

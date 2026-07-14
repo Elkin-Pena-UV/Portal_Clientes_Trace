@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { Rol } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
 import {
   Sheet,
@@ -31,6 +32,8 @@ interface SidebarItem {
   icon: React.ReactNode
   badge?: number
   group: string
+  /** Roles que ven este item en la navegación. */
+  roles: Rol[]
 }
 
 const sidebarItems: SidebarItem[] = [
@@ -39,12 +42,14 @@ const sidebarItems: SidebarItem[] = [
     label: 'Inicio',
     href: '/',
     icon: <Home className="size-5" />,
+    roles: ['cliente'],
   },
   {
     group: 'PEDIDOS',
     label: 'Crear orden',
     href: '/crear-orden',
     icon: <Plus className="size-5" />,
+    roles: ['cliente'],
   },
   {
     group: 'PEDIDOS',
@@ -52,12 +57,14 @@ const sidebarItems: SidebarItem[] = [
     href: '/mis-pedidos',
     icon: <SquareStack className="size-5" />,
     badge: 3,
+    roles: ['cliente'],
   },
   {
     group: 'PEDIDOS',
     label: 'Programación',
     href: '/programacion',
     icon: <Calendar className="size-5" />,
+    roles: ['cliente'],
   },
   {
     group: 'CARTERA',
@@ -65,29 +72,63 @@ const sidebarItems: SidebarItem[] = [
     href: '/pagos',
     icon: <CreditCard className="size-5" />,
     badge: 2,
+    roles: ['cliente'],
   },
   {
     group: 'CARTERA',
     label: 'Documentos',
     href: '/documentos',
     icon: <FileText className="size-5" />,
+    roles: ['cliente'],
   },
   {
     group: 'CATÁLOGO',
     label: 'Producto',
     href: '/producto',
     icon: <Package className="size-5" />,
+    roles: ['cliente'],
   },
   {
     group: 'CATÁLOGO',
     label: 'Sedes',
     href: '/sedes',
     icon: <MapPin className="size-5" />,
+    roles: ['cliente'],
   },
 ]
 
+/** Agrupa los items visibles para un rol, preservando el orden de los grupos. */
+function agruparItems(rol: Rol): Record<string, SidebarItem[]> {
+  const grouped: Record<string, SidebarItem[]> = {}
+  sidebarItems
+    .filter((item) => item.roles.includes(rol))
+    .forEach((item) => {
+      if (!grouped[item.group]) grouped[item.group] = []
+      grouped[item.group].push(item)
+    })
+  return grouped
+}
+
+/** Switcher temporal de rol, solo para desarrollo (no es auth real). */
+function RolSwitcher() {
+  const { rol, setRol } = usePortal()
+  return (
+    <select
+      value={rol}
+      onChange={(e) => setRol(e.target.value as Rol)}
+      title="Cambiar rol (solo desarrollo)"
+      className="mt-2 w-full rounded-md border border-dashed border-gray-300 bg-white px-2 py-1 text-xs text-gray-600"
+    >
+      <option value="cliente">Rol: Cliente</option>
+      <option value="servicio">Rol: Servicio</option>
+      <option value="admin">Rol: Admin</option>
+    </select>
+  )
+}
+
 export function Sidebar() {
   const pathname = usePathname()
+  const { rol } = usePortal()
   const [isCollapsed, setIsCollapsed] = React.useState(false)
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [isHydrated, setIsHydrated] = React.useState(false)
@@ -107,14 +148,7 @@ export function Sidebar() {
     localStorage.setItem('sidebar-collapsed', JSON.stringify(newState))
   }
 
-  const groups = React.useMemo(() => {
-    const grouped: Record<string, SidebarItem[]> = {}
-    sidebarItems.forEach((item) => {
-      if (!grouped[item.group]) grouped[item.group] = []
-      grouped[item.group].push(item)
-    })
-    return grouped
-  }, [])
+  const groups = React.useMemo(() => agruparItems(rol), [rol])
 
   const sidebarWidth = isCollapsed ? 'w-16' : 'w-56'
   
@@ -231,6 +265,7 @@ export function Sidebar() {
             </button>
           </div>
         )}
+        {!isCollapsed && <RolSwitcher />}
         {isCollapsed && (
           <button className="w-full rounded p-2 hover:bg-gray-100">
             <div className="flex size-8 items-center justify-center rounded-full bg-[#00359a] text-white text-xs font-bold mx-auto">
@@ -331,6 +366,7 @@ export function Sidebar() {
             <LogOut className="size-4 text-gray-600" />
           </button>
         </div>
+        <RolSwitcher />
       </div>
     </>
   )
@@ -361,15 +397,9 @@ interface SidebarMobileContentProps {
 
 export function SidebarMobileContent({ onClose = () => {} }: SidebarMobileContentProps) {
   const pathname = usePathname()
-  
-  const groups = React.useMemo(() => {
-    const grouped: Record<string, SidebarItem[]> = {}
-    sidebarItems.forEach((item) => {
-      if (!grouped[item.group]) grouped[item.group] = []
-      grouped[item.group].push(item)
-    })
-    return grouped
-  }, [])
+  const { rol } = usePortal()
+
+  const groups = React.useMemo(() => agruparItems(rol), [rol])
 
   return (
     <>
@@ -459,6 +489,7 @@ export function SidebarMobileContent({ onClose = () => {} }: SidebarMobileConten
             <LogOut className="size-4 text-gray-600" />
           </button>
         </div>
+        <RolSwitcher />
       </div>
     </>
   )

@@ -266,12 +266,12 @@ export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Producto</TableHead>
-                <TableHead className="text-right">Cant.</TableHead>
                 <TableHead>Entrega</TableHead>
                 <TableHead className="text-right">P. unit.</TableHead>
+                <TableHead className="text-right">Cant.</TableHead>
                 <TableHead className="text-right">Neto</TableHead>
                 <TableHead className="text-right">IVA</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Subtotal</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -305,9 +305,6 @@ export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
                         </span>
                       </span>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {item.cantidad}
-                    </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {editable ? (
                         <DatePicker
@@ -328,6 +325,9 @@ export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatCOP(prod.precio)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {item.cantidad}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatCOP(linea.neto)}

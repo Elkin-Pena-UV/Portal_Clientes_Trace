@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
-import { SedeCombobox } from '@/components/ordenes/sede-combobox'
+import { PuntoEntregaCombobox } from '@/components/ordenes/punto-entrega-combobox'
 import { usePortal } from '@/components/portal-provider'
 import { PaymentStepper } from './payment-stepper'
 
@@ -25,7 +25,7 @@ function Step1SelectAdvance({
 }: {
   onNext: (sede: string, monto: number) => void
 }) {
-  const { getSede } = usePortal()
+  const { getPuntoEntrega } = usePortal()
   const [selectedSede, setSelectedSede] = useState('')
   const [monto, setMonto] = useState('')
 
@@ -36,7 +36,7 @@ function Step1SelectAdvance({
 
   const montoNum = parseInt(monto.replace(/\D/g, '')) || 0
   const isValid = selectedSede && montoNum > 0
-  const sedeInfo = selectedSede ? getSede(selectedSede) : null
+  const sedeInfo = selectedSede ? getPuntoEntrega(selectedSede) : null
 
   return (
     <div className="space-y-6">
@@ -58,11 +58,12 @@ function Step1SelectAdvance({
               <Label className="text-sm font-medium mb-2 block">
                 Sede a la que harás el anticipo
               </Label>
-              <SedeCombobox
+              {/* Sin cascada por sede: el anticipo se asocia al punto del cliente. */}
+              <PuntoEntregaCombobox
                 value={selectedSede}
                 onChange={setSelectedSede}
                 placeholder="Selecciona una sede"
-                allowCreateSede={false}
+                allowCreate={false}
               />
             </div>
 
@@ -122,9 +123,9 @@ function Step2PaymentMethod({
   onNext: () => void
   onBack: () => void
 }) {
-  const { getSede } = usePortal()
+  const { getPuntoEntrega } = usePortal()
   const [isRobot, setIsRobot] = useState(false)
-  const sedeInfo = getSede(sede)
+  const sedeInfo = getPuntoEntrega(sede)
 
   return (
     <div className="grid grid-cols-2 gap-6">

@@ -52,16 +52,17 @@ function borradorDesde(pedido: Pedido): Borrador {
 }
 
 export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
-  const { getProducto, getSede, actualizarPedido, aprobarPedido } = usePortal()
+  const { getProducto, getSede, getPuntoEntrega, actualizarPedido, aprobarPedido } =
+    usePortal()
   const [borrador, setBorrador] = React.useState<Borrador>(() =>
     borradorDesde(pedido),
   )
 
   const editable = pedido.estado !== 'aprobado'
   const entregar = pedido.metodoDespacho === 'entregar'
-  const sede = getSede(
-    entregar ? pedido.datosEntrega.sedeId : pedido.datosRetira.sedeId,
-  )
+  const datos = entregar ? pedido.datosEntrega : pedido.datosRetira
+  const punto = getPuntoEntrega(datos.puntoEntregaId)
+  const sedeDespacho = getSede(datos.sedeDespachoId)
   const totales = totalesPedido(pedido, getProducto)
   const dirty =
     JSON.stringify(borrador) !== JSON.stringify(borradorDesde(pedido))
@@ -106,15 +107,19 @@ export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
             </span>
           )}
         </div>
-        <div className="grid gap-3 text-sm sm:grid-cols-3">
+        <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <InfoItem label="Cliente" value={pedido.clienteNombre} />
           <InfoItem
             label="Fecha de creación"
             value={formatFecha(pedido.fechaCreacion.slice(0, 10))}
           />
           <InfoItem
-            label="Sede"
-            value={sede ? `${sede.nombre} · ${sede.ciudad}` : '—'}
+            label="Sede de despacho"
+            value={sedeDespacho?.nombre ?? '—'}
+          />
+          <InfoItem
+            label={entregar ? 'Punto de entrega' : 'Punto de retiro'}
+            value={punto ? `${punto.nombre} · ${punto.ciudad}` : '—'}
             icon={<MapPin className="size-3.5" />}
           />
         </div>

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   ChevronLeft,
   ClipboardList,
+  Factory,
   Home,
   LayoutDashboard,
   LogOut,
@@ -94,6 +95,13 @@ const sidebarItems: SidebarItem[] = [
     group: 'CATÁLOGO',
     label: 'Sedes',
     href: '/sedes',
+    icon: <Factory className="size-5" />,
+    roles: ['cliente'],
+  },
+  {
+    group: 'CATÁLOGO',
+    label: 'Puntos de entrega',
+    href: '/puntos-entrega',
     icon: <MapPin className="size-5" />,
     roles: ['cliente'],
   },

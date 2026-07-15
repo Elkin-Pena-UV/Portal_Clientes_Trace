@@ -39,7 +39,7 @@ export function PedidosReview({
   onEditar,
   onEliminar,
 }: PedidosReviewProps) {
-  const { getProducto, getSede } = usePortal()
+  const { getProducto, getPuntoEntrega } = usePortal()
   const totalGeneral = totalesGlobales(
     pedidos.map((p) => p.pedido),
     getProducto,
@@ -53,10 +53,10 @@ export function PedidosReview({
       >
         {pedidos.map((imp, index) => {
           const { pedido, origen } = imp
-          const sede = getSede(
+          const sede = getPuntoEntrega(
             pedido.metodoDespacho === 'entregar'
-              ? pedido.datosEntrega.sedeId
-              : pedido.datosRetira.sedeId,
+              ? pedido.datosEntrega.puntoEntregaId
+              : pedido.datosRetira.puntoEntregaId,
           )
           const entregar = pedido.metodoDespacho === 'entregar'
           const contacto = entregar

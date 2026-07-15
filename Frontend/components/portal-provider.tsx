@@ -1,8 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import type { Pedido, Producto, Rol, Sede } from '@/lib/types'
-import { pedidosMock, productosMock, sedesMock } from '@/lib/mock-data'
+import type { Pedido, Producto, PuntoEntrega, Rol, Sede } from '@/lib/types'
+import {
+  pedidosMock,
+  productosMock,
+  puntosEntregaMock,
+  sedesMock,
+} from '@/lib/mock-data'
 
 interface PortalContextValue {
   /** Rol activo de la sesión (mock, se cambia con el switcher de desarrollo). */
@@ -19,10 +24,17 @@ interface PortalContextValue {
   /** Actualiza campos de un pedido. El estado solo cambia vía las transiciones. */
   actualizarPedido: (id: string, patch: Partial<Pedido>) => void
   getPedido: (id: string) => Pedido | undefined
+  /** Catálogo de sedes (plantas de despacho) y su CRUD. */
   addSede: (sede: Omit<Sede, 'id'>) => void
   updateSede: (id: string, sede: Omit<Sede, 'id'>) => void
   deleteSede: (id: string) => void
   getSede: (id: string) => Sede | undefined
+  /** Catálogo de puntos de entrega del cliente y su CRUD. */
+  puntosEntrega: PuntoEntrega[]
+  addPuntoEntrega: (punto: Omit<PuntoEntrega, 'id'>) => void
+  updatePuntoEntrega: (id: string, punto: Omit<PuntoEntrega, 'id'>) => void
+  deletePuntoEntrega: (id: string) => void
+  getPuntoEntrega: (id: string) => PuntoEntrega | undefined
   getProducto: (id: string) => Producto | undefined
   /** Lote de pedidos importados desde Excel, pendiente de cargar en el constructor. */
   setBorradorImportado: (pedidos: Pedido[]) => void
@@ -31,12 +43,16 @@ interface PortalContextValue {
   /** Espejo en vivo del borrador del pedido en construcción (para preservarlo al navegar). */
   mirrorBorradorPedidos: (pedidos: Pedido[]) => void
   /**
-   * Solicita crear una nueva sede desde el flujo de pedido: marca que al volver
-   * se debe restaurar el borrador y que la página de Sedes debe abrir el formulario.
+   * Solicita crear un nuevo punto de entrega desde el flujo de pedido: marca
+   * que al volver se debe restaurar el borrador y que la página de Puntos de
+   * entrega debe abrir el formulario con la sede de despacho pre-seleccionada.
    */
-  solicitarCrearSede: () => void
-  /** La página de Sedes consume esto en su montaje para abrir el formulario de creación. */
-  consumirAbrirNuevaSede: () => boolean
+  solicitarCrearPuntoEntrega: (sedeDespachoId: string) => void
+  /**
+   * La página de Puntos de entrega consume esto en su montaje: null si no hay
+   * solicitud pendiente; si la hay, trae la sede a pre-seleccionar (puede ser '').
+   */
+  consumirAbrirNuevoPunto: () => { sedeDespachoId: string } | null
   /** El constructor consume esto al volver para restaurar el borrador preservado. */
   consumirRestaurarBorrador: () => Pedido[] | null
 }
@@ -59,12 +75,14 @@ function siguienteConsecutivo(): string {
 export function PortalProvider({ children }: { children: React.ReactNode }) {
   const [rol, setRol] = React.useState<Rol>('cliente')
   const [sedes, setSedes] = React.useState<Sede[]>(sedesMock)
+  const [puntosEntrega, setPuntosEntrega] =
+    React.useState<PuntoEntrega[]>(puntosEntregaMock)
   const [productos] = React.useState<Producto[]>(productosMock)
   const [pedidos, setPedidos] = React.useState<Pedido[]>(pedidosMock)
   const borradorRef = React.useRef<Pedido[] | null>(null)
-  // Espejo del borrador en construcción + banderas para el flujo "crear sede".
+  // Espejo del borrador en construcción + banderas para el flujo "crear punto".
   const borradorPedidosRef = React.useRef<Pedido[] | null>(null)
-  const abrirNuevaSedeRef = React.useRef(false)
+  const abrirNuevoPuntoRef = React.useRef<{ sedeDespachoId: string } | null>(null)
   const restaurarBorradorRef = React.useRef(false)
 
   const setBorradorImportado = React.useCallback((pedidos: Pedido[]) => {
@@ -81,14 +99,17 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     borradorPedidosRef.current = pedidos
   }, [])
 
-  const solicitarCrearSede = React.useCallback(() => {
-    abrirNuevaSedeRef.current = true
-    restaurarBorradorRef.current = true
-  }, [])
+  const solicitarCrearPuntoEntrega = React.useCallback(
+    (sedeDespachoId: string) => {
+      abrirNuevoPuntoRef.current = { sedeDespachoId }
+      restaurarBorradorRef.current = true
+    },
+    [],
+  )
 
-  const consumirAbrirNuevaSede = React.useCallback(() => {
-    const v = abrirNuevaSedeRef.current
-    abrirNuevaSedeRef.current = false
+  const consumirAbrirNuevoPunto = React.useCallback(() => {
+    const v = abrirNuevoPuntoRef.current
+    abrirNuevoPuntoRef.current = null
     return v
   }, [])
 
@@ -159,6 +180,31 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     [sedes],
   )
 
+  const addPuntoEntrega = React.useCallback(
+    (punto: Omit<PuntoEntrega, 'id'>) => {
+      setPuntosEntrega((prev) => [{ ...punto, id: uid() }, ...prev])
+    },
+    [],
+  )
+
+  const updatePuntoEntrega = React.useCallback(
+    (id: string, punto: Omit<PuntoEntrega, 'id'>) => {
+      setPuntosEntrega((prev) =>
+        prev.map((p) => (p.id === id ? { ...punto, id } : p)),
+      )
+    },
+    [],
+  )
+
+  const deletePuntoEntrega = React.useCallback((id: string) => {
+    setPuntosEntrega((prev) => prev.filter((p) => p.id !== id))
+  }, [])
+
+  const getPuntoEntrega = React.useCallback(
+    (id: string) => puntosEntrega.find((p) => p.id === id),
+    [puntosEntrega],
+  )
+
   const getProducto = React.useCallback(
     (id: string) => productos.find((p) => p.id === id),
     [productos],
@@ -179,12 +225,17 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       updateSede,
       deleteSede,
       getSede,
+      puntosEntrega,
+      addPuntoEntrega,
+      updatePuntoEntrega,
+      deletePuntoEntrega,
+      getPuntoEntrega,
       getProducto,
       setBorradorImportado,
       consumirBorradorImportado,
       mirrorBorradorPedidos,
-      solicitarCrearSede,
-      consumirAbrirNuevaSede,
+      solicitarCrearPuntoEntrega,
+      consumirAbrirNuevoPunto,
       consumirRestaurarBorrador,
     }),
     [
@@ -201,12 +252,17 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       updateSede,
       deleteSede,
       getSede,
+      puntosEntrega,
+      addPuntoEntrega,
+      updatePuntoEntrega,
+      deletePuntoEntrega,
+      getPuntoEntrega,
       getProducto,
       setBorradorImportado,
       consumirBorradorImportado,
       mirrorBorradorPedidos,
-      solicitarCrearSede,
-      consumirAbrirNuevaSede,
+      solicitarCrearPuntoEntrega,
+      consumirAbrirNuevoPunto,
       consumirRestaurarBorrador,
     ],
   )

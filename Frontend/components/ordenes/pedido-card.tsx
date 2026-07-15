@@ -24,6 +24,7 @@ import { usePortal } from '@/components/portal-provider'
 import { despachoCompleto, fechasCompletas, totalUnidades } from '@/lib/order-utils'
 import { RadioCards } from '@/components/ordenes/radio-cards'
 import { SedeCombobox } from '@/components/ordenes/sede-combobox'
+import { PuntoEntregaCombobox } from '@/components/ordenes/punto-entrega-combobox'
 import { ProductPickerDialog } from '@/components/ordenes/product-picker-dialog'
 import { ProductLine } from '@/components/ordenes/product-line'
 import { Badge } from '@/components/ui/badge'
@@ -169,7 +170,7 @@ export function PedidoCard({
             <span className="truncate text-xs text-muted-foreground">
               {pedido.tipoProducto
                 ? pedido.tipoProducto === 'saco'
-                  ? 'Cemento en saco'
+                  ? 'Productos ensacados'
                   : 'Cemento a granel'
                 : 'Sin configurar'}
               {unidades > 0 ? ` · ${unidades} und.` : ''}
@@ -218,8 +219,8 @@ export function PedidoCard({
               options={[
                 {
                   value: 'saco',
-                  title: 'Cemento en saco',
-                  description: 'Presentaciones empacadas por bultos.',
+                  title: 'Productos ensacados',
+                  description: 'Cementos y línea de acabados en sacos.',
                   icon: Package,
                 },
                 {
@@ -266,17 +267,44 @@ export function PedidoCard({
               <div className="animate-in fade-in-0 slide-in-from-top-2 rounded-lg border bg-muted/30 p-4 duration-300">
                 <FieldGroup>
                   <Field
-                    data-invalid={showErrors && !e.sedeId}
+                    data-invalid={showErrors && !e.sedeDespachoId}
                     className="@container/field"
                   >
-                    <FieldLabel>Sede / punto de entrega</FieldLabel>
+                    <FieldLabel>Sede</FieldLabel>
                     <SedeCombobox
-                      value={e.sedeId}
-                      onChange={(v) => setEntrega({ sedeId: v })}
-                      invalid={showErrors && !e.sedeId}
-                      placeholder="Selecciona el punto de entrega"
+                      value={e.sedeDespachoId}
+                      onChange={(v) => {
+                        // Cambiar de sede invalida el punto elegido (cascada).
+                        if (v !== e.sedeDespachoId) {
+                          setEntrega({ sedeDespachoId: v, puntoEntregaId: '' })
+                        }
+                      }}
+                      invalid={showErrors && !e.sedeDespachoId}
+                      placeholder="Selecciona la sede de despacho"
                     />
-                    {showErrors && !e.sedeId && (
+                    {showErrors && !e.sedeDespachoId && (
+                      <FieldError>Selecciona una sede.</FieldError>
+                    )}
+                  </Field>
+
+                  <Field
+                    data-invalid={showErrors && !e.puntoEntregaId}
+                    className="@container/field"
+                  >
+                    <FieldLabel>Punto de entrega</FieldLabel>
+                    <PuntoEntregaCombobox
+                      value={e.puntoEntregaId}
+                      onChange={(v) => setEntrega({ puntoEntregaId: v })}
+                      sedeId={e.sedeDespachoId || null}
+                      disabled={!e.sedeDespachoId}
+                      invalid={showErrors && !e.puntoEntregaId}
+                      placeholder={
+                        e.sedeDespachoId
+                          ? 'Selecciona el punto de entrega'
+                          : 'Primero selecciona una sede'
+                      }
+                    />
+                    {showErrors && !e.puntoEntregaId && (
                       <FieldError>Selecciona un punto de entrega.</FieldError>
                     )}
                   </Field>
@@ -413,15 +441,39 @@ export function PedidoCard({
             {pedido.metodoDespacho === 'retira' && (
               <div className="animate-in fade-in-0 slide-in-from-top-2 rounded-lg border bg-muted/30 p-4 duration-300">
                 <FieldGroup>
-                  <Field data-invalid={showErrors && !r.sedeId}>
-                    <FieldLabel>Punto de retiro</FieldLabel>
+                  <Field data-invalid={showErrors && !r.sedeDespachoId}>
+                    <FieldLabel>Sede</FieldLabel>
                     <SedeCombobox
-                      value={r.sedeId}
-                      onChange={(v) => setRetira({ sedeId: v })}
-                      invalid={showErrors && !r.sedeId}
-                      placeholder="Selecciona el punto de retiro"
+                      value={r.sedeDespachoId}
+                      onChange={(v) => {
+                        // Cambiar de sede invalida el punto elegido (cascada).
+                        if (v !== r.sedeDespachoId) {
+                          setRetira({ sedeDespachoId: v, puntoEntregaId: '' })
+                        }
+                      }}
+                      invalid={showErrors && !r.sedeDespachoId}
+                      placeholder="Selecciona la sede de despacho"
                     />
-                    {showErrors && !r.sedeId && (
+                    {showErrors && !r.sedeDespachoId && (
+                      <FieldError>Selecciona una sede.</FieldError>
+                    )}
+                  </Field>
+
+                  <Field data-invalid={showErrors && !r.puntoEntregaId}>
+                    <FieldLabel>Punto de retiro</FieldLabel>
+                    <PuntoEntregaCombobox
+                      value={r.puntoEntregaId}
+                      onChange={(v) => setRetira({ puntoEntregaId: v })}
+                      sedeId={r.sedeDespachoId || null}
+                      disabled={!r.sedeDespachoId}
+                      invalid={showErrors && !r.puntoEntregaId}
+                      placeholder={
+                        r.sedeDespachoId
+                          ? 'Selecciona el punto de retiro'
+                          : 'Primero selecciona una sede'
+                      }
+                    />
+                    {showErrors && !r.puntoEntregaId && (
                       <FieldError>Selecciona un punto de retiro.</FieldError>
                     )}
                   </Field>

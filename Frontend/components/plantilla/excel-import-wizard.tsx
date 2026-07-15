@@ -59,7 +59,8 @@ const PASOS = [
 
 export function ExcelImportWizard() {
   const router = useRouter()
-  const { productos, sedes, getProducto, setBorradorImportado } = usePortal()
+  const { productos, puntosEntrega, getProducto, setBorradorImportado } =
+    usePortal()
   const [paso, setPaso] = React.useState<Paso>('inicio')
   const [generando, setGenerando] = React.useState(false)
   const [resultado, setResultado] = React.useState<ResultadoProcesamiento | null>(null)
@@ -79,7 +80,7 @@ export function ExcelImportWizard() {
   async function descargarPlantilla() {
     setGenerando(true)
     try {
-      const blob = await generarPlantilla(productos, sedes)
+      const blob = await generarPlantilla(productos, puntosEntrega)
       descargarBlob(blob, 'CementoYa_Plantilla_Pedidos.xlsx')
       toast.success('Plantilla descargada. Complétala y vuelve a subirla.')
     } catch {
@@ -100,7 +101,7 @@ export function ExcelImportWizard() {
       }
       // Pequeña espera para mostrar el estado de carga.
       await new Promise((r) => setTimeout(r, 600))
-      const res = procesarFilas(filas, productos, sedes)
+      const res = procesarFilas(filas, productos, puntosEntrega)
       setResultado(res)
       setPedidos(res.pedidos)
       setPaso('revision')

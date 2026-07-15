@@ -4,7 +4,7 @@ import type {
   MetodoDespacho,
   Pedido,
   Producto,
-  Sede,
+  PuntoEntrega,
 } from '@/lib/types'
 import { datosEntregaVacios, datosRetiraVacios } from '@/lib/types'
 import { generarNumeroPedido, hoyInicio } from '@/lib/order-utils'
@@ -141,7 +141,7 @@ function sugerir(valor: string, opciones: string[]): string | null {
 interface FilaValidada {
   filaNum: number
   metodo: MetodoDespacho
-  sede: Sede
+  punto: PuntoEntrega
   ordenCompra: string
   nombreContacto: string
   celular: string
@@ -166,12 +166,12 @@ interface FilaValidada {
 export function procesarFilas(
   filas: FilaCruda[],
   productos: Producto[],
-  sedes: Sede[],
+  puntosEntrega: PuntoEntrega[],
 ): ResultadoProcesamiento {
   const errores: ErrorFila[] = []
   const validas: FilaValidada[] = []
   const hoy = hoyInicio()
-  const nombresSede = sedes.map((s) => s.nombre)
+  const nombresPunto = puntosEntrega.map((p) => p.nombre)
   const codigos = productos.map((p) => p.codigo)
 
   if (filas.length > MAX_FILAS) {
@@ -195,16 +195,16 @@ export function procesarFilas(
       ok = false
     }
 
-    const sede = sedes.find(
-      (s) => s.nombre.trim().toLowerCase() === fila.sede.trim().toLowerCase(),
+    const punto = puntosEntrega.find(
+      (p) => p.nombre.trim().toLowerCase() === fila.sede.trim().toLowerCase(),
     )
-    if (!sede) {
-      const sug = sugerir(fila.sede, nombresSede)
+    if (!punto) {
+      const sug = sugerir(fila.sede, nombresPunto)
       err(
         'Sede / Punto de entrega',
         fila.sede.trim()
-          ? `La sede "${fila.sede}" no existe.${sug ? ` ¿Quisiste decir "${sug}"?` : ''}`
-          : 'La sede es obligatoria.',
+          ? `El punto "${fila.sede}" no existe.${sug ? ` ¿Quisiste decir "${sug}"?` : ''}`
+          : 'El punto de entrega es obligatorio.',
       )
       ok = false
     }
@@ -310,11 +310,11 @@ export function procesarFilas(
       }
     }
 
-    if (ok && metodo && sede && producto && estiba !== null && multi !== null) {
+    if (ok && metodo && punto && producto && estiba !== null && multi !== null) {
       validas.push({
         filaNum,
         metodo,
-        sede,
+        punto,
         ordenCompra,
         nombreContacto: fila.nombreContacto.trim(),
         celular: fila.celular.trim(),
@@ -369,7 +369,8 @@ export function procesarFilas(
       datosEntrega:
         base.metodo === 'entregar'
           ? {
-              sedeId: base.sede.id,
+              sedeDespachoId: base.punto.sedeDespachoId,
+              puntoEntregaId: base.punto.id,
               ordenCompra: base.ordenCompra,
               nombreRecibe: base.nombreContacto,
               celular: base.celular,
@@ -382,7 +383,8 @@ export function procesarFilas(
       datosRetira:
         base.metodo === 'retira'
           ? {
-              sedeId: base.sede.id,
+              sedeDespachoId: base.punto.sedeDespachoId,
+              puntoEntregaId: base.punto.id,
               ordenCompra: base.ordenCompra,
               nombreConductor: base.nombreContacto,
               cedula: base.cedula,

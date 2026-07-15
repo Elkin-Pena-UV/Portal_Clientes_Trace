@@ -2,11 +2,19 @@
 
 import * as React from 'react'
 import { toast } from 'sonner'
-import { Factory, Pencil, Plus, Search, Trash2 } from 'lucide-react'
-import type { Sede } from '@/lib/types'
+import {
+  Building2,
+  MapPin,
+  Pencil,
+  Plus,
+  Search,
+  Store,
+  Trash2,
+} from 'lucide-react'
+import type { PuntoEntrega } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
-import { SedeFormSheet } from '@/components/sedes/sede-form-sheet'
+import { PuntoEntregaFormSheet } from '@/components/puntos-entrega/punto-entrega-form-sheet'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -43,60 +51,77 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-export default function SedesPage() {
-  const { sedes, deleteSede } = usePortal()
+export default function PuntosEntregaPage() {
+  const { puntosEntrega, deletePuntoEntrega, getSede, consumirAbrirNuevoPunto } =
+    usePortal()
   const [query, setQuery] = React.useState('')
   const [formOpen, setFormOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState<Sede | null>(null)
-  const [toDelete, setToDelete] = React.useState<Sede | null>(null)
+  const [editing, setEditing] = React.useState<PuntoEntrega | null>(null)
+  const [toDelete, setToDelete] = React.useState<PuntoEntrega | null>(null)
+  const [sedeInicial, setSedeInicial] = React.useState<string>('')
+
+  // Si llegamos desde el flujo "Agregar nuevo punto" del pedido, abrir el
+  // formulario con la sede de despacho ya pre-seleccionada.
+  React.useEffect(() => {
+    const solicitud = consumirAbrirNuevoPunto()
+    if (solicitud) {
+      setEditing(null)
+      setSedeInicial(solicitud.sedeDespachoId)
+      setFormOpen(true)
+      toast.info('Crea el punto de entrega y vuelve a tu pedido para seleccionarlo.')
+    }
+  }, [consumirAbrirNuevoPunto])
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return sedes
-    return sedes.filter(
-      (s) =>
-        s.nombre.toLowerCase().includes(q) ||
-        s.ciudad.toLowerCase().includes(q),
+    if (!q) return puntosEntrega
+    return puntosEntrega.filter(
+      (p) =>
+        p.nombre.toLowerCase().includes(q) ||
+        p.ciudad.toLowerCase().includes(q),
     )
-  }, [sedes, query])
+  }, [puntosEntrega, query])
 
   function openCreate() {
     setEditing(null)
+    setSedeInicial('')
     setFormOpen(true)
   }
 
-  function openEdit(sede: Sede) {
-    setEditing(sede)
+  function openEdit(punto: PuntoEntrega) {
+    setEditing(punto)
     setFormOpen(true)
   }
 
   function confirmDelete() {
     if (!toDelete) return
-    deleteSede(toDelete.id)
-    toast.success(`Sede "${toDelete.nombre}" eliminada.`)
+    deletePuntoEntrega(toDelete.id)
+    toast.success(`Punto de entrega "${toDelete.nombre}" eliminado.`)
     setToDelete(null)
   }
 
   return (
     <DashboardLayout
-      title="Sedes"
-      subtitle="Sucursales y plantas de despacho de la compañía"
+      title="Puntos de entrega"
+      subtitle="Gestiona los puntos de entrega y retiro"
     >
       <div className="mx-auto w-full max-w-6xl">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-end">
           <Button onClick={openCreate}>
             <Plus data-icon="inline-start" />
-            Nueva sede
+            Nuevo punto de entrega
           </Button>
         </div>
 
         <Card className="mt-6">
           <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-1">
-              <CardTitle>Listado de sedes</CardTitle>
+              <CardTitle>Listado de puntos de entrega</CardTitle>
               <CardDescription>
-                {sedes.length} {sedes.length === 1 ? 'sede' : 'sedes'} de
-                despacho registradas
+                {puntosEntrega.length}{' '}
+                {puntosEntrega.length === 1
+                  ? 'punto registrado'
+                  : 'puntos registrados'}
               </CardDescription>
             </div>
             <InputGroup className="sm:w-72">
@@ -115,20 +140,20 @@ export default function SedesPage() {
               <Empty className="border border-dashed">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
-                    <Factory />
+                    <MapPin />
                   </EmptyMedia>
                   <EmptyTitle>Sin resultados</EmptyTitle>
                   <EmptyDescription>
                     {query
-                      ? 'No encontramos sedes con ese criterio de búsqueda.'
-                      : 'Aún no hay sedes de despacho registradas.'}
+                      ? 'No encontramos puntos de entrega con ese criterio de búsqueda.'
+                      : 'Aún no has registrado ningún punto de entrega.'}
                   </EmptyDescription>
                 </EmptyHeader>
                 {!query && (
                   <EmptyContent>
                     <Button onClick={openCreate}>
                       <Plus data-icon="inline-start" />
-                      Crear primera sede
+                      Crear primer punto
                     </Button>
                   </EmptyContent>
                 )}
@@ -138,56 +163,69 @@ export default function SedesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead className="hidden sm:table-cell">Ciudad</TableHead>
+                      <TableHead>Punto de entrega</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Sede de despacho</TableHead>
                       <TableHead className="hidden md:table-cell">
                         Dirección
                       </TableHead>
-                      <TableHead>Estado</TableHead>
+                      <TableHead className="hidden sm:table-cell">Ciudad</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((sede) => (
-                      <TableRow key={sede.id}>
+                    {filtered.map((punto) => (
+                      <TableRow key={punto.id}>
                         <TableCell>
-                          <span className="flex items-center gap-2 font-medium">
-                            <Factory className="size-4 text-muted-foreground" />
-                            {sede.nombre}
-                          </span>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell text-muted-foreground">
-                          {sede.ciudad}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell text-muted-foreground">
-                          {sede.direccion}
+                          <div className="flex flex-col">
+                            <span className="font-medium">{punto.nombre}</span>
+                            {punto.contactoNombre && (
+                              <span className="text-xs text-muted-foreground">
+                                {punto.contactoNombre}
+                                {punto.contactoTelefono
+                                  ? ` · ${punto.contactoTelefono}`
+                                  : ''}
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge
-                            className={
-                              sede.activa
-                                ? 'bg-green-100 text-green-700 hover:bg-green-100'
-                                : 'bg-gray-100 text-gray-500 hover:bg-gray-100'
-                            }
+                            variant={punto.tipo === 'obra' ? 'secondary' : 'outline'}
+                            className="gap-1"
                           >
-                            {sede.activa ? 'Activa' : 'Inactiva'}
+                            {punto.tipo === 'obra' ? (
+                              <Building2 className="size-3" />
+                            ) : (
+                              <Store className="size-3" />
+                            )}
+                            {punto.tipo === 'obra' ? 'Obra' : 'Punto de venta'}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {getSede(punto.sedeDespachoId)?.nombre ?? '—'}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-muted-foreground">
+                          {punto.direccion}
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell text-muted-foreground">
+                          {punto.ciudad}
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => openEdit(sede)}
-                              aria-label={`Editar ${sede.nombre}`}
+                              onClick={() => openEdit(punto)}
+                              aria-label={`Editar ${punto.nombre}`}
                             >
                               <Pencil />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => setToDelete(sede)}
-                              aria-label={`Eliminar ${sede.nombre}`}
+                              onClick={() => setToDelete(punto)}
+                              aria-label={`Eliminar ${punto.nombre}`}
                             >
                               <Trash2 className="text-destructive" />
                             </Button>
@@ -202,18 +240,23 @@ export default function SedesPage() {
           </CardContent>
         </Card>
 
-        <SedeFormSheet open={formOpen} onOpenChange={setFormOpen} sede={editing} />
+        <PuntoEntregaFormSheet
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          punto={editing}
+          sedeDespachoInicial={sedeInicial}
+        />
 
         <Dialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Eliminar sede</DialogTitle>
+              <DialogTitle>Eliminar punto de entrega</DialogTitle>
               <DialogDescription>
                 ¿Seguro que deseas eliminar{' '}
                 <span className="font-medium text-foreground">
                   {toDelete?.nombre}
                 </span>
-                ? Los puntos de entrega asignados quedarán sin sede de despacho.
+                ? Esta acción no se puede deshacer.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

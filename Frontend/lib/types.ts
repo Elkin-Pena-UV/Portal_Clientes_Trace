@@ -1,11 +1,29 @@
 export type TipoPunto = 'obra' | 'punto_venta'
 
+/**
+ * Sucursal/planta de despacho de Cementos San Marcos (ej: "Cali – Planta SC").
+ * Catálogo pequeño y fijo, gestionado por la compañía.
+ */
 export interface Sede {
+  id: string
+  nombre: string
+  ciudad: string
+  direccion: string
+  activa: boolean
+}
+
+/**
+ * Ubicación del cliente donde se recibe/retira el pedido (obra o punto de
+ * venta). Cada punto pertenece a una única Sede de despacho.
+ */
+export interface PuntoEntrega {
   id: string
   nombre: string
   tipo: TipoPunto
   direccion: string
   ciudad: string
+  /** Sede (planta) desde la que se despacha todo lo pedido hacia este punto. */
+  sedeDespachoId: string
   contactoNombre?: string
   contactoTelefono?: string
 }
@@ -35,7 +53,10 @@ export interface Producto {
 export type MetodoDespacho = 'entregar' | 'retira'
 
 export interface DatosEntrega {
-  sedeId: string
+  /** Sede (planta) de despacho seleccionada en el paso 1 de la cascada. */
+  sedeDespachoId: string
+  /** Punto de entrega del cliente (debe pertenecer a la sede de despacho). */
+  puntoEntregaId: string
   ordenCompra: string
   nombreRecibe: string
   celular: string
@@ -46,7 +67,10 @@ export interface DatosEntrega {
 }
 
 export interface DatosRetira {
-  sedeId: string
+  /** Sede (planta) de despacho seleccionada en el paso 1 de la cascada. */
+  sedeDespachoId: string
+  /** Punto de retiro del cliente (debe pertenecer a la sede de despacho). */
+  puntoEntregaId: string
   ordenCompra: string
   nombreConductor: string
   cedula: string
@@ -122,7 +146,8 @@ export interface Pedido {
 }
 
 export const datosEntregaVacios = (): DatosEntrega => ({
-  sedeId: '',
+  sedeDespachoId: '',
+  puntoEntregaId: '',
   ordenCompra: '',
   nombreRecibe: '',
   celular: '',
@@ -133,7 +158,8 @@ export const datosEntregaVacios = (): DatosEntrega => ({
 })
 
 export const datosRetiraVacios = (): DatosRetira => ({
-  sedeId: '',
+  sedeDespachoId: '',
+  puntoEntregaId: '',
   ordenCompra: '',
   nombreConductor: '',
   cedula: '',

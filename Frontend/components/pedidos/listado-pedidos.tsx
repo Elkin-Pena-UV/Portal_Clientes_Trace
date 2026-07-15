@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { Columns3, Eye, Pencil } from 'lucide-react'
-import type { EstadoPedido, Pedido, Sede } from '@/lib/types'
+import type { EstadoPedido, Pedido, PuntoEntrega } from '@/lib/types'
 import { ESTADO_CREDITO_LABEL, ESTADO_LABEL } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
 import { totalUnidades, totalesPedido } from '@/lib/order-utils'
@@ -47,16 +47,16 @@ interface ListadoPedidosProps {
   estadoInicial?: EstadoPedido
 }
 
-/** Sede del pedido según su método de despacho. */
-function sedeDePedido(
+/** Punto de entrega del pedido según su método de despacho. */
+function puntoDePedido(
   pedido: Pedido,
-  getSede: (id: string) => Sede | undefined,
-): Sede | undefined {
-  const sedeId =
+  getPuntoEntrega: (id: string) => PuntoEntrega | undefined,
+): PuntoEntrega | undefined {
+  const puntoId =
     pedido.metodoDespacho === 'retira'
-      ? pedido.datosRetira.sedeId
-      : pedido.datosEntrega.sedeId
-  return sedeId ? getSede(sedeId) : undefined
+      ? pedido.datosRetira.puntoEntregaId
+      : pedido.datosEntrega.puntoEntregaId
+  return puntoId ? getPuntoEntrega(puntoId) : undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -83,10 +83,10 @@ type ColumnaKey =
 
 type VisibilidadColumnas = Record<ColumnaKey, boolean>
 
-/** Contexto de una fila, ya resuelto (sede, totales) para las celdas. */
+/** Contexto de una fila, ya resuelto (punto de entrega, totales) para las celdas. */
 interface CeldaCtx {
   pedido: Pedido
-  sede: Sede | undefined
+  sede: PuntoEntrega | undefined
   total: number
   basePath: string
 }
@@ -240,7 +240,7 @@ export function ListadoPedidos({
   basePath,
   estadoInicial,
 }: ListadoPedidosProps) {
-  const { pedidos, getProducto, getSede } = usePortal()
+  const { pedidos, getProducto, getPuntoEntrega } = usePortal()
   const [estado, setEstado] = React.useState<FiltroEstado>(
     estadoInicial ?? 'todos',
   )
@@ -336,7 +336,7 @@ export function ListadoPedidos({
 
   const ctxDe = (pedido: Pedido): CeldaCtx => ({
     pedido,
-    sede: sedeDePedido(pedido, getSede),
+    sede: puntoDePedido(pedido, getPuntoEntrega),
     total: totalesPedido(pedido, getProducto).total,
     basePath,
   })

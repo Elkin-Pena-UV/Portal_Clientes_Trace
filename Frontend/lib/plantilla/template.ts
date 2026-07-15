@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs'
-import type { Producto, Sede } from '@/lib/types'
+import type { Producto, PuntoEntrega } from '@/lib/types'
 import {
   COLOR_AZUL,
   COLOR_BLANCO,
@@ -25,7 +25,7 @@ function fechaEjemplo(dias: number): string {
  */
 export async function generarPlantilla(
   productos: Producto[],
-  sedes: Sede[],
+  sedes: PuntoEntrega[],
 ): Promise<Blob> {
   const wb = new ExcelJS.Workbook()
   wb.creator = 'CementoYa'

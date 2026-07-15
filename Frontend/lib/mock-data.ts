@@ -1,4 +1,4 @@
-import type { Pedido, Producto, Sede } from './types'
+import type { Pedido, Producto, PuntoEntrega, Sede } from './types'
 import { datosEntregaVacios, datosRetiraVacios } from './types'
 
 /** Usuario mock de la sesión actual (prototipo sin auth real). */
@@ -159,13 +159,40 @@ export const productosMock: Producto[] = [
     imagen: '/images/granel.png',
   },
 ]
+/** Sucursales/plantas de despacho de la compañía (catálogo fijo). */
 export const sedesMock: Sede[] = [
+  {
+    id: 'sd1',
+    nombre: 'Cali – Planta SC',
+    ciudad: 'Cali',
+    direccion: 'Km 24 Vía Panorama Cali – Buga',
+    activa: true,
+  },
+  {
+    id: 'sd2',
+    nombre: 'Yumbo – San Marcos',
+    ciudad: 'Yumbo',
+    direccion: 'Corregimiento San Marcos, Yumbo',
+    activa: true,
+  },
+  {
+    id: 'sd3',
+    nombre: 'Palmira – Zona Franca',
+    ciudad: 'Palmira',
+    direccion: 'Zona Franca Palmira, Bodega 12',
+    activa: true,
+  },
+]
+
+/** Puntos de entrega/retiro del cliente, cada uno asignado a una sede de despacho. */
+export const puntosEntregaMock: PuntoEntrega[] = [
   {
     id: 's1',
     nombre: 'Obra Torre Central',
     tipo: 'obra',
     direccion: 'Cra 45 # 26-85',
     ciudad: 'Bogotá',
+    sedeDespachoId: 'sd1',
     contactoNombre: 'Ing. Marcela Ríos',
     contactoTelefono: '3104567890',
   },
@@ -175,6 +202,7 @@ export const sedesMock: Sede[] = [
     tipo: 'punto_venta',
     direccion: 'Calle 170 # 8-32',
     ciudad: 'Bogotá',
+    sedeDespachoId: 'sd1',
     contactoNombre: 'Carlos Méndez',
     contactoTelefono: '3201234567',
   },
@@ -184,6 +212,7 @@ export const sedesMock: Sede[] = [
     tipo: 'obra',
     direccion: 'Av. Las Palmas km 12',
     ciudad: 'Medellín',
+    sedeDespachoId: 'sd2',
     contactoNombre: 'Ing. Julián Vélez',
     contactoTelefono: '3009876543',
   },
@@ -193,6 +222,7 @@ export const sedesMock: Sede[] = [
     tipo: 'punto_venta',
     direccion: 'Cra 50 # 8 Sur-12',
     ciudad: 'Cali',
+    sedeDespachoId: 'sd3',
     contactoNombre: 'Andrea Lozano',
     contactoTelefono: '3157654321',
   },
@@ -221,7 +251,8 @@ export const pedidosMock: Pedido[] = [
     tipoProducto: 'saco',
     metodoDespacho: 'entregar',
     datosEntrega: {
-      sedeId: 's1',
+      sedeDespachoId: 'sd1',
+      puntoEntregaId: 's1',
       ordenCompra: 'OC-4410',
       nombreRecibe: 'Marcela Ríos',
       celular: '3104567890',
@@ -253,7 +284,8 @@ export const pedidosMock: Pedido[] = [
     tipoProducto: 'granel',
     metodoDespacho: 'entregar',
     datosEntrega: {
-      sedeId: 's3',
+      sedeDespachoId: 'sd2',
+      puntoEntregaId: 's3',
       ordenCompra: 'OC-4472',
       nombreRecibe: 'Julián Vélez',
       celular: '3009876543',
@@ -282,7 +314,8 @@ export const pedidosMock: Pedido[] = [
     tipoProducto: 'saco',
     metodoDespacho: 'entregar',
     datosEntrega: {
-      sedeId: 's4',
+      sedeDespachoId: 'sd3',
+      puntoEntregaId: 's4',
       ordenCompra: 'OC-1207',
       nombreRecibe: 'Andrea Lozano',
       celular: '3157654321',
@@ -317,7 +350,8 @@ export const pedidosMock: Pedido[] = [
     metodoDespacho: 'retira',
     datosEntrega: datosEntregaVacios(),
     datosRetira: {
-      sedeId: 's2',
+      sedeDespachoId: 'sd1',
+      puntoEntregaId: 's2',
       ordenCompra: 'OC-8821',
       nombreConductor: 'Pedro Salazar',
       cedula: '79456123',

@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { toast } from 'sonner'
-import type { Sede, TipoPunto } from '@/lib/types'
+import type { Sede } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,14 +12,7 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import {
   Sheet,
   SheetContent,
@@ -37,22 +30,19 @@ interface SedeFormSheetProps {
 
 interface FormState {
   nombre: string
-  tipo: TipoPunto | ''
-  direccion: string
   ciudad: string
-  contactoNombre: string
-  contactoTelefono: string
+  direccion: string
+  activa: boolean
 }
 
 const emptyForm: FormState = {
   nombre: '',
-  tipo: '',
-  direccion: '',
   ciudad: '',
-  contactoNombre: '',
-  contactoTelefono: '',
+  direccion: '',
+  activa: true,
 }
 
+/** Formulario del catálogo de Sedes (sucursales/plantas de despacho). */
 export function SedeFormSheet({ open, onOpenChange, sede }: SedeFormSheetProps) {
   const { addSede, updateSede } = usePortal()
   const [form, setForm] = React.useState<FormState>(emptyForm)
@@ -65,11 +55,9 @@ export function SedeFormSheet({ open, onOpenChange, sede }: SedeFormSheetProps) 
         sede
           ? {
               nombre: sede.nombre,
-              tipo: sede.tipo,
-              direccion: sede.direccion,
               ciudad: sede.ciudad,
-              contactoNombre: sede.contactoNombre ?? '',
-              contactoTelefono: sede.contactoTelefono ?? '',
+              direccion: sede.direccion,
+              activa: sede.activa,
             }
           : emptyForm,
       )
@@ -83,11 +71,8 @@ export function SedeFormSheet({ open, onOpenChange, sede }: SedeFormSheetProps) 
   function validate() {
     const next: Record<string, string> = {}
     if (!form.nombre.trim()) next.nombre = 'Ingresa el nombre de la sede.'
-    if (!form.tipo) next.tipo = 'Selecciona el tipo de punto.'
-    if (!form.direccion.trim()) next.direccion = 'Ingresa la dirección.'
     if (!form.ciudad.trim()) next.ciudad = 'Ingresa la ciudad.'
-    if (form.contactoTelefono && !/^\d{7,10}$/.test(form.contactoTelefono.trim()))
-      next.contactoTelefono = 'Teléfono inválido (7 a 10 dígitos).'
+    if (!form.direccion.trim()) next.direccion = 'Ingresa la dirección.'
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -97,11 +82,9 @@ export function SedeFormSheet({ open, onOpenChange, sede }: SedeFormSheetProps) 
     if (!validate()) return
     const payload = {
       nombre: form.nombre.trim(),
-      tipo: form.tipo as TipoPunto,
-      direccion: form.direccion.trim(),
       ciudad: form.ciudad.trim(),
-      contactoNombre: form.contactoNombre.trim() || undefined,
-      contactoTelefono: form.contactoTelefono.trim() || undefined,
+      direccion: form.direccion.trim(),
+      activa: form.activa,
     }
     if (sede) {
       updateSede(sede.id, payload)
@@ -120,8 +103,8 @@ export function SedeFormSheet({ open, onOpenChange, sede }: SedeFormSheetProps) 
           <SheetTitle>{sede ? 'Editar sede' : 'Nueva sede'}</SheetTitle>
           <SheetDescription>
             {sede
-              ? 'Actualiza la información del punto.'
-              : 'Registra un punto de entrega o retiro disponible para tus pedidos.'}
+              ? 'Actualiza la información de la sucursal de despacho.'
+              : 'Registra una sucursal/planta de despacho de la compañía.'}
           </SheetDescription>
         </SheetHeader>
 
@@ -132,92 +115,52 @@ export function SedeFormSheet({ open, onOpenChange, sede }: SedeFormSheetProps) 
         >
           <FieldGroup>
             <Field data-invalid={!!errors.nombre}>
-              <FieldLabel htmlFor="nombre">Nombre de la sede</FieldLabel>
+              <FieldLabel htmlFor="sede-nombre">Nombre</FieldLabel>
               <Input
-                id="nombre"
+                id="sede-nombre"
                 value={form.nombre}
                 onChange={(e) => set('nombre', e.target.value)}
-                placeholder="Ej: Obra Torre Central"
+                placeholder="Ej: Cali – Planta SC"
                 aria-invalid={!!errors.nombre}
               />
               {errors.nombre && <FieldError>{errors.nombre}</FieldError>}
             </Field>
 
-            <Field data-invalid={!!errors.tipo}>
-              <FieldLabel htmlFor="tipo">Tipo de punto</FieldLabel>
-              <Select
-                value={form.tipo || undefined}
-                onValueChange={(v) => set('tipo', v as TipoPunto)}
-              >
-                <SelectTrigger id="tipo" aria-invalid={!!errors.tipo}>
-                  <SelectValue placeholder="Selecciona un tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="obra">Obra</SelectItem>
-                    <SelectItem value="punto_venta">Punto de venta</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              {errors.tipo && <FieldError>{errors.tipo}</FieldError>}
-            </Field>
-
-            <Field data-invalid={!!errors.direccion}>
-              <FieldLabel htmlFor="direccion">Dirección</FieldLabel>
-              <Input
-                id="direccion"
-                value={form.direccion}
-                onChange={(e) => set('direccion', e.target.value)}
-                placeholder="Ej: Cra 45 # 26-85"
-                aria-invalid={!!errors.direccion}
-              />
-              {errors.direccion && <FieldError>{errors.direccion}</FieldError>}
-            </Field>
-
             <Field data-invalid={!!errors.ciudad}>
-              <FieldLabel htmlFor="ciudad">Ciudad</FieldLabel>
+              <FieldLabel htmlFor="sede-ciudad">Ciudad</FieldLabel>
               <Input
-                id="ciudad"
+                id="sede-ciudad"
                 value={form.ciudad}
                 onChange={(e) => set('ciudad', e.target.value)}
-                placeholder="Ej: Bogotá"
+                placeholder="Ej: Cali"
                 aria-invalid={!!errors.ciudad}
               />
               {errors.ciudad && <FieldError>{errors.ciudad}</FieldError>}
             </Field>
 
-            <Field>
-              <FieldLabel htmlFor="contactoNombre">
-                Nombre de contacto (opcional)
-              </FieldLabel>
+            <Field data-invalid={!!errors.direccion}>
+              <FieldLabel htmlFor="sede-direccion">Dirección</FieldLabel>
               <Input
-                id="contactoNombre"
-                value={form.contactoNombre}
-                onChange={(e) => set('contactoNombre', e.target.value)}
-                placeholder="Ej: Ing. Marcela Ríos"
+                id="sede-direccion"
+                value={form.direccion}
+                onChange={(e) => set('direccion', e.target.value)}
+                placeholder="Ej: Km 24 Vía Panorama Cali – Buga"
+                aria-invalid={!!errors.direccion}
               />
+              {errors.direccion && <FieldError>{errors.direccion}</FieldError>}
             </Field>
 
-            <Field data-invalid={!!errors.contactoTelefono}>
-              <FieldLabel htmlFor="contactoTelefono">
-                Teléfono de contacto (opcional)
-              </FieldLabel>
-              <Input
-                id="contactoTelefono"
-                inputMode="numeric"
-                value={form.contactoTelefono}
-                onChange={(e) =>
-                  set('contactoTelefono', e.target.value.replace(/\D/g, ''))
-                }
-                placeholder="Ej: 3104567890"
-                aria-invalid={!!errors.contactoTelefono}
+            <Field orientation="horizontal">
+              <Switch
+                id="sede-activa"
+                checked={form.activa}
+                onCheckedChange={(c) => set('activa', c)}
               />
-              {errors.contactoTelefono ? (
-                <FieldError>{errors.contactoTelefono}</FieldError>
-              ) : (
-                <FieldDescription>Solo números, sin espacios.</FieldDescription>
-              )}
+              <FieldLabel htmlFor="sede-activa">Sede activa</FieldLabel>
             </Field>
+            <FieldDescription>
+              Las sedes inactivas no aparecen en los selectores de pedidos.
+            </FieldDescription>
           </FieldGroup>
         </form>
 

@@ -126,7 +126,8 @@ export function despachoCompleto(pedido: Pedido): boolean {
   if (pedido.metodoDespacho === 'entregar') {
     const d = pedido.datosEntrega
     return (
-      !!d.sedeId &&
+      !!d.sedeDespachoId &&
+      !!d.puntoEntregaId &&
       !!d.ordenCompra.trim() &&
       !!d.nombreRecibe.trim() &&
       /^\d{10}$/.test(d.celular) &&
@@ -136,7 +137,8 @@ export function despachoCompleto(pedido: Pedido): boolean {
   if (pedido.metodoDespacho === 'retira') {
     const d = pedido.datosRetira
     return (
-      !!d.sedeId &&
+      !!d.sedeDespachoId &&
+      !!d.puntoEntregaId &&
       !!d.ordenCompra.trim() &&
       !!d.nombreConductor.trim() &&
       /^\d{6,10}$/.test(d.cedula) &&

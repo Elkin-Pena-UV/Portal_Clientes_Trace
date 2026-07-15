@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Columns3, Pencil, Search } from 'lucide-react'
+import { Columns3, Eye, Pencil } from 'lucide-react'
 import type { EstadoPedido, Pedido, Sede } from '@/lib/types'
 import { ESTADO_CREDITO_LABEL, ESTADO_LABEL } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
@@ -108,8 +108,14 @@ const COLUMNAS: ColumnaDef[] = [
     label: 'Cod',
     hideable: false,
     defaultVisible: true,
-    cellClass: 'font-semibold text-[#00359a]',
-    renderCell: ({ pedido }) => pedido.numero,
+    renderCell: ({ pedido, basePath }) => (
+      <Link
+        href={`${basePath}/${pedido.id}`}
+        className="font-semibold text-[#00359a] hover:underline"
+      >
+        {pedido.numero}
+      </Link>
+    ),
   },
   {
     key: 'pvc',
@@ -123,7 +129,9 @@ const COLUMNAS: ColumnaDef[] = [
     label: 'Estado crédito',
     hideable: true,
     defaultVisible: false,
-    renderCell: ({ pedido }) => ESTADO_CREDITO_LABEL[pedido.estadoCredito],
+    renderCell: ({ pedido }) => (
+      <EstadoCreditoBadge estadoCredito={pedido.estadoCredito} />
+    ),
   },
   {
     key: 'formaPago',
@@ -182,6 +190,7 @@ const COLUMNAS: ColumnaDef[] = [
     label: 'Creador',
     hideable: true,
     defaultVisible: false,
+    cellClass: 'text-muted-foreground',
     renderCell: ({ pedido }) => pedido.creadorEmail,
   },
   {
@@ -199,7 +208,7 @@ const COLUMNAS: ColumnaDef[] = [
     hideable: true,
     defaultVisible: true,
     headClass: 'text-right',
-    cellClass: 'text-right font-medium tabular-nums',
+    cellClass: 'text-right font-semibold tabular-nums',
     renderCell: ({ total }) => formatCOP(total),
   },
   {
@@ -335,14 +344,15 @@ export function ListadoPedidos({
   return (
     <div className="flex flex-col gap-4">
       {/* Barra de filtros + selector de columnas */}
-      <div className="flex flex-wrap items-end gap-3">
+      <Card className="rounded-xl border p-4">
+        <div className="flex flex-wrap items-end gap-2">
         <FiltroCampo label="Estado">
           <Select
             items={estadoItems}
             value={estado}
             onValueChange={(v) => setEstado((v ?? 'todos') as FiltroEstado)}
           >
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-36">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -362,7 +372,7 @@ export function ListadoPedidos({
             value={clienteId}
             onValueChange={(v) => setClienteId(v ?? 'todos')}
           >
-            <SelectTrigger className="w-52">
+            <SelectTrigger className="w-48">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -396,13 +406,12 @@ export function ListadoPedidos({
           />
         </FiltroCampo>
 
-        {hayFiltros && (
-          <Button variant="ghost" size="sm" onClick={limpiarFiltros}>
-            Limpiar filtros
-          </Button>
-        )}
-
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {hayFiltros && (
+            <Button variant="ghost" size="sm" onClick={limpiarFiltros}>
+              Limpiar filtros
+            </Button>
+          )}
           <Popover>
             <PopoverTrigger
               render={
@@ -448,15 +457,24 @@ export function ListadoPedidos({
               </div>
             </PopoverContent>
           </Popover>
+          </div>
         </div>
-      </div>
+      </Card>
+
+      {/* Contador de resultados */}
+      <p className="text-sm text-muted-foreground">
+        <span className="font-semibold text-foreground">
+          {filtrados.length}
+        </span>{' '}
+        pedidos encontrados
+      </p>
 
       {/* Tabla en desktop (scroll horizontal: son muchas columnas) */}
       <Card className="hidden overflow-hidden py-0 md:block">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent">
+              <TableRow className="border-b-2 border-border hover:bg-transparent">
                 {columnasVisibles.map((c) => (
                   <TableHead
                     key={c.key}
@@ -485,7 +503,7 @@ export function ListadoPedidos({
                       {columnasVisibles.map((c) => (
                         <TableCell
                           key={c.key}
-                          className={`text-sm whitespace-nowrap ${c.cellClass ?? ''}`}
+                          className={`py-4 text-sm whitespace-nowrap ${c.cellClass ?? ''}`}
                         >
                           {c.renderCell(ctx)}
                         </TableCell>
@@ -551,10 +569,32 @@ function AccionLink({
       {esBorrador ? (
         <Pencil className="size-3.5" />
       ) : (
-        <Search className="size-3.5" />
+        <Eye className="size-3.5" />
       )}
       {esBorrador ? 'Editar' : 'Ver'}
     </Link>
+  )
+}
+
+/**
+ * Badge sutil del estado de crédito: deliberadamente más tenue que
+ * EstadoBadge (el estado del pedido es el protagonista de la fila).
+ */
+function EstadoCreditoBadge({
+  estadoCredito,
+}: {
+  estadoCredito: Pedido['estadoCredito']
+}) {
+  const clase =
+    estadoCredito === 'aprobado'
+      ? 'bg-green-50 text-green-600'
+      : 'bg-gray-100 text-gray-500'
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${clase}`}
+    >
+      {ESTADO_CREDITO_LABEL[estadoCredito]}
+    </span>
   )
 }
 
@@ -605,7 +645,9 @@ function PedidoCardMovil({
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {visibles.pvc && <span>Exportado: {pedido.pvc ?? '—'}</span>}
           {visibles.estadoCredito && (
-            <span>Crédito: {ESTADO_CREDITO_LABEL[pedido.estadoCredito]}</span>
+            <span className="flex items-center gap-1">
+              Crédito: <EstadoCreditoBadge estadoCredito={pedido.estadoCredito} />
+            </span>
           )}
           {visibles.formaPago && <span>{pedido.formaPago}</span>}
           {visibles.plazoCredito && <span>{pedido.plazoCredito}</span>}

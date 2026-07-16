@@ -38,9 +38,18 @@ export const COLUMNAS: ColumnaDef[] = [
   },
   {
     key: 'sede',
-    header: 'Sede / Punto de entrega',
+    header: 'Sede',
+    width: 22,
+    ayuda:
+      'Obligatorio. Nombre exacto de una sede de despacho del catálogo de Sedes. Determina qué puntos de entrega son válidos en esa fila.',
+    ejemplo: 'Cali – Planta SC',
+  },
+  {
+    key: 'puntoEntrega',
+    header: 'Punto de entrega',
     width: 26,
-    ayuda: 'Obligatorio. Nombre exacto de una sede creada en el módulo de Sedes.',
+    ayuda:
+      'Obligatorio. Nombre exacto de un punto de entrega del catálogo. Debe pertenecer a la Sede indicada en la columna anterior.',
     ejemplo: 'Obra Torre Central',
   },
   {

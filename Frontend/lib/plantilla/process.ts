@@ -5,6 +5,7 @@ import type {
   Pedido,
   Producto,
   PuntoEntrega,
+  Sede,
 } from '@/lib/types'
 import { datosEntregaVacios, datosRetiraVacios } from '@/lib/types'
 import { generarNumeroPedido, hoyInicio } from '@/lib/order-utils'
@@ -141,6 +142,7 @@ function sugerir(valor: string, opciones: string[]): string | null {
 interface FilaValidada {
   filaNum: number
   metodo: MetodoDespacho
+  sede: Sede
   punto: PuntoEntrega
   ordenCompra: string
   nombreContacto: string
@@ -166,11 +168,13 @@ interface FilaValidada {
 export function procesarFilas(
   filas: FilaCruda[],
   productos: Producto[],
+  sedes: Sede[],
   puntosEntrega: PuntoEntrega[],
 ): ResultadoProcesamiento {
   const errores: ErrorFila[] = []
   const validas: FilaValidada[] = []
   const hoy = hoyInicio()
+  const nombresSede = sedes.map((s) => s.nombre)
   const nombresPunto = puntosEntrega.map((p) => p.nombre)
   const codigos = productos.map((p) => p.codigo)
 
@@ -195,16 +199,38 @@ export function procesarFilas(
       ok = false
     }
 
+    const sede = sedes.find(
+      (s) => s.nombre.trim().toLowerCase() === fila.sede.trim().toLowerCase(),
+    )
+    if (!sede) {
+      const sug = sugerir(fila.sede, nombresSede)
+      err(
+        'Sede',
+        fila.sede.trim()
+          ? `La sede "${fila.sede}" no existe en el catálogo de Sedes.${sug ? ` ¿Quisiste decir "${sug}"?` : ''}`
+          : 'La sede de despacho es obligatoria.',
+      )
+      ok = false
+    }
+
     const punto = puntosEntrega.find(
-      (p) => p.nombre.trim().toLowerCase() === fila.sede.trim().toLowerCase(),
+      (p) =>
+        p.nombre.trim().toLowerCase() === fila.puntoEntrega.trim().toLowerCase(),
     )
     if (!punto) {
-      const sug = sugerir(fila.sede, nombresPunto)
+      const sug = sugerir(fila.puntoEntrega, nombresPunto)
       err(
-        'Sede / Punto de entrega',
-        fila.sede.trim()
-          ? `El punto "${fila.sede}" no existe.${sug ? ` ¿Quisiste decir "${sug}"?` : ''}`
+        'Punto de entrega',
+        fila.puntoEntrega.trim()
+          ? `El punto "${fila.puntoEntrega}" no existe en el catálogo.${sug ? ` ¿Quisiste decir "${sug}"?` : ''}`
           : 'El punto de entrega es obligatorio.',
+      )
+      ok = false
+    } else if (sede && punto.sedeDespachoId !== sede.id) {
+      // Relación en cascada: el punto debe pertenecer a la sede de su fila.
+      err(
+        'Punto de entrega',
+        `El punto "${punto.nombre}" no pertenece a la sede "${sede.nombre}".`,
       )
       ok = false
     }
@@ -310,10 +336,19 @@ export function procesarFilas(
       }
     }
 
-    if (ok && metodo && punto && producto && estiba !== null && multi !== null) {
+    if (
+      ok &&
+      metodo &&
+      sede &&
+      punto &&
+      producto &&
+      estiba !== null &&
+      multi !== null
+    ) {
       validas.push({
         filaNum,
         metodo,
+        sede,
         punto,
         ordenCompra,
         nombreContacto: fila.nombreContacto.trim(),
@@ -369,7 +404,7 @@ export function procesarFilas(
       datosEntrega:
         base.metodo === 'entregar'
           ? {
-              sedeDespachoId: base.punto.sedeDespachoId,
+              sedeDespachoId: base.sede.id,
               puntoEntregaId: base.punto.id,
               ordenCompra: base.ordenCompra,
               nombreRecibe: base.nombreContacto,
@@ -383,7 +418,7 @@ export function procesarFilas(
       datosRetira:
         base.metodo === 'retira'
           ? {
-              sedeDespachoId: base.punto.sedeDespachoId,
+              sedeDespachoId: base.sede.id,
               puntoEntregaId: base.punto.id,
               ordenCompra: base.ordenCompra,
               nombreConductor: base.nombreContacto,

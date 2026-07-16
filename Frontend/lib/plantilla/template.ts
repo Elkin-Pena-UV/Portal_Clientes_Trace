@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs'
-import type { Producto, PuntoEntrega } from '@/lib/types'
+import type { Producto, PuntoEntrega, Sede } from '@/lib/types'
 import {
   COLOR_AZUL,
   COLOR_BLANCO,
@@ -25,7 +25,8 @@ function fechaEjemplo(dias: number): string {
  */
 export async function generarPlantilla(
   productos: Producto[],
-  sedes: PuntoEntrega[],
+  sedes: Sede[],
+  puntosEntrega: PuntoEntrega[],
 ): Promise<Blob> {
   const wb = new ExcelJS.Workbook()
   wb.creator = 'CementoYa'
@@ -34,7 +35,8 @@ export async function generarPlantilla(
   // --- Hoja oculta de listas (para validaciones de datos) ---
   const listas = wb.addWorksheet('Listas', { state: 'veryHidden' })
   const codigos = productos.map((p) => p.codigo)
-  const nombresSede = sedes.map((s) => s.nombre)
+  const nombresSede = sedes.filter((s) => s.activa).map((s) => s.nombre)
+  const nombresPunto = puntosEntrega.map((p) => p.nombre)
 
   // Escribir cada lista en su columna comenzando en la fila 1 (sin ambigüedad).
   listas.getCell('A1').value = 'Entregar'
@@ -47,11 +49,15 @@ export async function generarPlantilla(
   nombresSede.forEach((n, i) => {
     listas.getCell(`D${i + 1}`).value = n
   })
+  nombresPunto.forEach((n, i) => {
+    listas.getCell(`E${i + 1}`).value = n
+  })
 
   const rangoDespacho = '=Listas!$A$1:$A$2'
   const rangoSiNo = '=Listas!$B$1:$B$2'
   const rangoCodigos = `=Listas!$C$1:$C$${Math.max(codigos.length, 1)}`
   const rangoSedes = `=Listas!$D$1:$D$${Math.max(nombresSede.length, 1)}`
+  const rangoPuntos = `=Listas!$E$1:$E$${Math.max(nombresPunto.length, 1)}`
 
   // --- Hoja Pedidos ---
   const ws = wb.addWorksheet('Pedidos', {
@@ -79,12 +85,16 @@ export async function generarPlantilla(
   headerRow.height = 32
 
   const getProd = (codigo: string) => productos.find((p) => p.codigo === codigo)
+  // Sede (nombre) a la que pertenece un punto, para ejemplos coherentes.
+  const sedeDe = (punto?: PuntoEntrega) =>
+    sedes.find((s) => s.id === punto?.sedeDespachoId)?.nombre ?? ''
 
   // Filas de ejemplo (5 filas -> 4 pedidos; las filas 4 y 5 se agrupan).
   const ejemplos: Record<string, string>[] = [
     {
       metodoDespacho: 'Entregar',
-      sede: sedes[0]?.nombre ?? 'Obra Torre Central',
+      sede: sedeDe(puntosEntrega[0]) || 'Cali – Planta SC',
+      puntoEntrega: puntosEntrega[0]?.nombre ?? 'Obra Torre Central',
       ordenCompra: '254701',
       nombreContacto: 'Marcela Ríos',
       celular: '3104567890',
@@ -102,7 +112,8 @@ export async function generarPlantilla(
     },
     {
       metodoDespacho: 'Retira',
-      sede: sedes[1]?.nombre ?? 'Punto de Venta Norte',
+      sede: sedeDe(puntosEntrega[1]) || 'Cali – Planta SC',
+      puntoEntrega: puntosEntrega[1]?.nombre ?? 'Punto de Venta Norte',
       ordenCompra: '254702',
       nombreContacto: 'Juan Conductor',
       celular: '3201112233',
@@ -112,7 +123,7 @@ export async function generarPlantilla(
       estiba: 'NO',
       descarga: '',
       observaciones: 'Llamar antes de llegar',
-      codigoProducto: 'COD-0108',
+      codigoProducto: 'COD-0110',
       cantidad: '5',
       fechaEntrega: fechaEjemplo(5),
       multiProducto: 'NO',
@@ -120,7 +131,8 @@ export async function generarPlantilla(
     },
     {
       metodoDespacho: 'Entregar',
-      sede: sedes[2]?.nombre ?? 'Obra Conjunto Las Palmas',
+      sede: sedeDe(puntosEntrega[2]) || 'Yumbo – San Marcos',
+      puntoEntrega: puntosEntrega[2]?.nombre ?? 'Obra Conjunto Las Palmas',
       ordenCompra: '254703',
       nombreContacto: 'Julián Vélez',
       celular: '3009876543',
@@ -138,7 +150,8 @@ export async function generarPlantilla(
     },
     {
       metodoDespacho: 'Entregar',
-      sede: sedes[2]?.nombre ?? 'Obra Conjunto Las Palmas',
+      sede: sedeDe(puntosEntrega[2]) || 'Yumbo – San Marcos',
+      puntoEntrega: puntosEntrega[2]?.nombre ?? 'Obra Conjunto Las Palmas',
       ordenCompra: '254703',
       nombreContacto: 'Julián Vélez',
       celular: '3009876543',
@@ -156,7 +169,8 @@ export async function generarPlantilla(
     },
     {
       metodoDespacho: 'Retira',
-      sede: sedes[3]?.nombre ?? 'Punto de Venta Sur',
+      sede: sedeDe(puntosEntrega[3]) || 'Palmira – Zona Franca',
+      puntoEntrega: puntosEntrega[3]?.nombre ?? 'Punto de Venta Sur',
       ordenCompra: '254704',
       nombreContacto: 'Andrea Conductor',
       celular: '3157654321',
@@ -188,6 +202,7 @@ export async function generarPlantilla(
   const L = {
     metodo: colLetra('metodoDespacho'),
     sede: colLetra('sede'),
+    puntoEntrega: colLetra('puntoEntrega'),
     estiba: colLetra('estiba'),
     descarga: colLetra('descarga'),
     codigo: colLetra('codigoProducto'),
@@ -207,6 +222,11 @@ export async function generarPlantilla(
       type: 'list',
       allowBlank: true,
       formulae: [rangoSedes],
+    }
+    ws.getCell(`${L.puntoEntrega}${r}`).dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      formulae: [rangoPuntos],
     }
     ws.getCell(`${L.estiba}${r}`).dataValidation = {
       type: 'list',
@@ -283,6 +303,7 @@ export async function generarPlantilla(
   ins.getRow(notaRow).getCell(2).value = 'Notas importantes:'
   ins.getRow(notaRow).getCell(2).font = { bold: true }
   const notas = [
+    'La Sede es la planta de despacho y determina qué Puntos de entrega son válidos: el punto indicado debe pertenecer a la sede de su misma fila, o la fila se marcará con error.',
     'La fecha de entrega no puede ser anterior a hoy.',
     'Para pedidos con varios productos, marca "¿Es multi-producto?" = SÍ y usa el mismo número en "Agrupador de pedido".',
     'Si el método es Entregar: el correo es obligatorio. Si es Retira: la cédula y placa del conductor son obligatorias.',

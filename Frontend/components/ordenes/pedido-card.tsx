@@ -317,7 +317,9 @@ export function PedidoCard({
                       id={`oc-e-${pedido.id}`}
                       value={e.ordenCompra}
                       onChange={(ev) =>
-                        setEntrega({ ordenCompra: ev.target.value })
+                        setEntrega({ 
+                          ordenCompra: ev.target.value.replace(/\D/g, '').slice(0, 15)
+                        })
                       }
                       aria-invalid={showErrors && !e.ordenCompra.trim()}
                       placeholder="Ej: 254701"
@@ -414,7 +416,7 @@ export function PedidoCard({
                         }
                       />
                       <FieldLabel htmlFor={`descarga-${pedido.id}`}>
-                        ¿Necesita descarga?
+                        ¿Descarga incluida?
                       </FieldLabel>
                     </Field>
                   </div>
@@ -486,7 +488,9 @@ export function PedidoCard({
                       id={`oc-r-${pedido.id}`}
                       value={r.ordenCompra}
                       onChange={(ev) =>
-                        setRetira({ ordenCompra: ev.target.value })
+                        setRetira({ 
+                          ordenCompra: ev.target.value.replace(/\D/g, '').slice(0, 15) 
+                        })
                       }
                       aria-invalid={showErrors && !r.ordenCompra.trim()}
                       placeholder="Ej: 254701"

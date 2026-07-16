@@ -73,9 +73,9 @@ function ProductCard({ sheet }: { sheet: TechnicalSheet }) {
 
   return (
     <Card className="overflow-hidden py-0 gap-0 transition-shadow hover:shadow-md">
-      <CardHeader className={cn('relative flex min-h-36 items-center justify-center border-b px-6 py-8', category.surface)}>
-        <div className="flex flex-col items-center gap-3">
-          <Icon aria-hidden="true" className={cn('size-12', category.iconColor)} strokeWidth={1.6} />
+            <CardHeader className={cn('relative flex h-28 items-center justify-center border-b px-6 py-6', category.surface)}>
+        <div className="flex flex-col items-center gap-2">
+          <Icon aria-hidden="true" className={cn('size-10', category.iconColor)} strokeWidth={1.6} />
           <span className={cn('text-xs font-semibold uppercase tracking-wider', category.iconColor)}>{category.label}</span>
         </div>
         {!sheet.available && (
@@ -83,7 +83,7 @@ function ProductCard({ sheet }: { sheet: TechnicalSheet }) {
         )}
       </CardHeader>
 
-      <CardContent className="flex min-h-40 flex-col gap-3 px-5 py-5">
+      <CardContent className="flex min-h-32 flex-col gap-2 px-5 py-4">
         <CardTitle className="text-base leading-snug text-pretty">{sheet.name}</CardTitle>
         <p className="text-sm leading-relaxed text-muted-foreground">
           SKU: {sheet.sku} <span aria-hidden="true">·</span> {sheet.presentation}
@@ -113,7 +113,7 @@ export function ProductCatalog() {
   const availableCount = technicalSheets.length - unavailable.length
 
   return (
-    <div className="flex flex-col gap-6 pt-4 md:pt-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 pt-4 md:pt-6">
       {unavailable.length > 0 && (
         <Alert className="border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
           <Info aria-hidden="true" className="text-[#ff6600]" />
@@ -133,7 +133,7 @@ export function ProductCatalog() {
           <Badge variant="secondary" className="shrink-0">{availableCount} disponibles</Badge>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {technicalSheets.map((sheet) => <ProductCard key={sheet.sku} sheet={sheet} />)}
         </div>
       </section>

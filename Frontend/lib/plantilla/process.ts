@@ -263,7 +263,7 @@ export function procesarFilas(
       }
       const dsc = normSiNo(fila.descarga)
       if (dsc === null) {
-        err('¿Necesita descarga?', 'Obligatorio para "Entregar". Usa SÍ o NO.')
+        err('¿Descarga incluida?', 'Obligatorio para "Entregar". Usa SÍ o NO.')
         ok = false
       } else {
         descarga = dsc

@@ -114,7 +114,7 @@ export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
             value={formatFecha(pedido.fechaCreacion.slice(0, 10))}
           />
           <InfoItem
-            label="Sede de despacho"
+            label="Sede"
             value={sedeDespacho?.nombre ?? '—'}
           />
           <InfoItem

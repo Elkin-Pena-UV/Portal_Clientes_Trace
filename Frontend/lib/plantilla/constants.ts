@@ -105,7 +105,7 @@ export const COLUMNAS: ColumnaDef[] = [
   },
   {
     key: 'descarga',
-    header: '¿Necesita descarga?',
+    header: '¿Descarga incluida?',
     width: 18,
     ayuda: 'Obligatorio solo si el método es Entregar. Valores: SÍ / NO.',
     ejemplo: 'SÍ',

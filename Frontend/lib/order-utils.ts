@@ -1,5 +1,9 @@
 import type { Pedido, Producto } from './types'
-import { datosEntregaVacios, datosRetiraVacios } from './types'
+import {
+  contactoEntregaVacio,
+  contactoRetiraVacio,
+  despachoVacio,
+} from './types'
 import { clienteActualMock } from './mock-data'
 
 export interface Totales {
@@ -87,9 +91,11 @@ export function nuevoPedido(): Pedido {
     moneda: 'COP',
     tipoProducto: null,
     metodoDespacho: null,
-    datosEntrega: datosEntregaVacios(),
-    datosRetira: datosRetiraVacios(),
+    despacho: despachoVacio(),
+    contactoEntrega: contactoEntregaVacio(),
+    contactoRetira: contactoRetiraVacio(),
     items: [],
+    sedeFacturaId: null,
   }
 }
 
@@ -112,9 +118,12 @@ export function clonarPedido(prev: Pedido): Pedido {
     moneda: prev.moneda,
     tipoProducto: prev.tipoProducto,
     metodoDespacho: prev.metodoDespacho,
-    datosEntrega: { ...prev.datosEntrega },
-    datosRetira: { ...prev.datosRetira },
+    despacho: { ...prev.despacho },
+    contactoEntrega: { ...prev.contactoEntrega },
+    contactoRetira: { ...prev.contactoRetira },
     items: [],
+    // La sede factura la asigna SAC por pedido: no se hereda del anterior.
+    sedeFacturaId: null,
   }
 }
 
@@ -123,27 +132,28 @@ export function totalUnidades(pedido: Pedido): number {
 }
 
 export function despachoCompleto(pedido: Pedido): boolean {
+  // Bloque común: aplica igual para cualquier método.
+  const d = pedido.despacho
+  const comunCompleto =
+    !!d.sedeId && !!d.puntoEntregaId && !!d.ordenCompra.trim()
+  if (!comunCompleto) return false
+
+  // Según el método, solo se valida su bloque de contacto.
   if (pedido.metodoDespacho === 'entregar') {
-    const d = pedido.datosEntrega
+    const c = pedido.contactoEntrega
     return (
-      !!d.sedeDespachoId &&
-      !!d.puntoEntregaId &&
-      !!d.ordenCompra.trim() &&
-      !!d.nombreRecibe.trim() &&
-      /^\d{10}$/.test(d.celular) &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.correo)
+      !!c.nombreRecibe.trim() &&
+      /^\d{10}$/.test(c.celular) &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.correo)
     )
   }
   if (pedido.metodoDespacho === 'retira') {
-    const d = pedido.datosRetira
+    const c = pedido.contactoRetira
     return (
-      !!d.sedeDespachoId &&
-      !!d.puntoEntregaId &&
-      !!d.ordenCompra.trim() &&
-      !!d.nombreConductor.trim() &&
-      /^\d{6,10}$/.test(d.cedula) &&
-      /^[A-Z]{3}\d{3}$/.test(d.placa) &&
-      /^\d{10}$/.test(d.celular)
+      !!c.nombreConductor.trim() &&
+      /^\d{6,10}$/.test(c.cedula) &&
+      /^[A-Z]{3}\d{3}$/.test(c.placa) &&
+      /^\d{10}$/.test(c.celular)
     )
   }
   return false

@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import {
+  AlertTriangle,
   Boxes,
   CheckCircle2,
   ChevronDown,
@@ -14,8 +15,9 @@ import {
   Truck,
 } from 'lucide-react'
 import type {
-  DatosEntrega,
-  DatosRetira,
+  ContactoEntrega,
+  ContactoRetira,
+  DatosDespacho,
   ItemPedido,
   Pedido,
   TipoProducto,
@@ -36,7 +38,8 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 
@@ -52,6 +55,43 @@ interface PedidoCardProps {
 
 function FieldError({ children }: { children: React.ReactNode }) {
   return <p className="text-sm font-medium text-destructive">{children}</p>
+}
+
+/** Radio Sí/No horizontal para los servicios adicionales (estiba/descarga). */
+function SiNoField({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string
+  label: string
+  value: boolean
+  onChange: (value: boolean) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label className="text-sm font-medium">{label}</Label>
+      <RadioGroup
+        value={value ? 'si' : 'no'}
+        onValueChange={(v) => onChange(v === 'si')}
+        className="flex items-center gap-4"
+      >
+        <span className="flex items-center gap-2">
+          <RadioGroupItem value="si" id={`${id}-si`} />
+          <Label htmlFor={`${id}-si`} className="cursor-pointer font-normal">
+            Sí
+          </Label>
+        </span>
+        <span className="flex items-center gap-2">
+          <RadioGroupItem value="no" id={`${id}-no`} />
+          <Label htmlFor={`${id}-no`} className="cursor-pointer font-normal">
+            No
+          </Label>
+        </span>
+      </RadioGroup>
+    </div>
+  )
 }
 
 function StepHeading({
@@ -99,15 +139,33 @@ export function PedidoCard({
   }
 
   function setMetodo(metodo: 'entregar' | 'retira') {
-    onChange({ ...pedido, metodoDespacho: metodo })
+    onChange({
+      ...pedido,
+      metodoDespacho: metodo,
+      // La descarga solo aplica a 'entregar': al pasar a Retira se fuerza off.
+      despacho:
+        metodo === 'retira'
+          ? { ...pedido.despacho, necesitaDescarga: false }
+          : pedido.despacho,
+    })
   }
 
-  function setEntrega(patch: Partial<DatosEntrega>) {
-    onChange({ ...pedido, datosEntrega: { ...pedido.datosEntrega, ...patch } })
+  function setDespacho(patch: Partial<DatosDespacho>) {
+    onChange({ ...pedido, despacho: { ...pedido.despacho, ...patch } })
   }
 
-  function setRetira(patch: Partial<DatosRetira>) {
-    onChange({ ...pedido, datosRetira: { ...pedido.datosRetira, ...patch } })
+  function setContactoEntrega(patch: Partial<ContactoEntrega>) {
+    onChange({
+      ...pedido,
+      contactoEntrega: { ...pedido.contactoEntrega, ...patch },
+    })
+  }
+
+  function setContactoRetira(patch: Partial<ContactoRetira>) {
+    onChange({
+      ...pedido,
+      contactoRetira: { ...pedido.contactoRetira, ...patch },
+    })
   }
 
   function setItems(items: ItemPedido[]) {
@@ -137,8 +195,10 @@ export function PedidoCard({
   const faltanFechas = pedido.items.length > 0 && !fechasCompletas(pedido)
 
   const unidades = totalUnidades(pedido)
-  const e = pedido.datosEntrega
-  const r = pedido.datosRetira
+  const d = pedido.despacho
+  const ce = pedido.contactoEntrega
+  const cr = pedido.contactoRetira
+  const entregar = pedido.metodoDespacho === 'entregar'
 
   return (
     <div
@@ -262,342 +322,113 @@ export function PedidoCard({
               <FieldError>Selecciona un método de despacho.</FieldError>
             )}
 
-            {/* Formulario dinámico Entregar */}
-            {pedido.metodoDespacho === 'entregar' && (
-              <div className="animate-in fade-in-0 slide-in-from-top-2 rounded-lg border bg-muted/30 p-4 duration-300">
+            {/* Formulario de despacho: bloque común + contacto según método.
+                El bloque común NO se remonta al alternar Entregar/Retira; solo
+                el bloque de contacto se intercambia (y lleva la animación). */}
+            {pedido.metodoDespacho !== null && (
+              <div className="rounded-lg border bg-muted/30 p-4">
                 <FieldGroup>
                   <Field
-                    data-invalid={showErrors && !e.sedeDespachoId}
+                    data-invalid={showErrors && !d.sedeId}
                     className="@container/field"
                   >
                     <FieldLabel>Sede</FieldLabel>
                     <SedeCombobox
-                      value={e.sedeDespachoId}
+                      value={d.sedeId}
                       onChange={(v) => {
                         // Cambiar de sede invalida el punto elegido (cascada).
-                        if (v !== e.sedeDespachoId) {
-                          setEntrega({ sedeDespachoId: v, puntoEntregaId: '' })
+                        if (v !== d.sedeId) {
+                          setDespacho({ sedeId: v, puntoEntregaId: '' })
                         }
                       }}
-                      invalid={showErrors && !e.sedeDespachoId}
+                      invalid={showErrors && !d.sedeId}
                       placeholder="Selecciona la sede de despacho"
                     />
-                    {showErrors && !e.sedeDespachoId && (
+                    {showErrors && !d.sedeId && (
                       <FieldError>Selecciona una sede.</FieldError>
                     )}
                   </Field>
 
                   <Field
-                    data-invalid={showErrors && !e.puntoEntregaId}
+                    data-invalid={showErrors && !d.puntoEntregaId}
                     className="@container/field"
                   >
-                    <FieldLabel>Punto de entrega</FieldLabel>
+                    <FieldLabel>
+                      {entregar ? 'Punto de entrega' : 'Punto de retiro'}
+                    </FieldLabel>
                     <PuntoEntregaCombobox
-                      value={e.puntoEntregaId}
-                      onChange={(v) => setEntrega({ puntoEntregaId: v })}
-                      sedeId={e.sedeDespachoId || null}
-                      disabled={!e.sedeDespachoId}
-                      invalid={showErrors && !e.puntoEntregaId}
+                      value={d.puntoEntregaId}
+                      onChange={(v) => setDespacho({ puntoEntregaId: v })}
+                      sedeId={d.sedeId || null}
+                      disabled={!d.sedeId}
+                      invalid={showErrors && !d.puntoEntregaId}
                       placeholder={
-                        e.sedeDespachoId
-                          ? 'Selecciona el punto de entrega'
+                        d.sedeId
+                          ? entregar
+                            ? 'Selecciona el punto de entrega'
+                            : 'Selecciona el punto de retiro'
                           : 'Primero selecciona una sede'
                       }
                     />
-                    {showErrors && !e.puntoEntregaId && (
-                      <FieldError>Selecciona un punto de entrega.</FieldError>
+                    {showErrors && !d.puntoEntregaId && (
+                      <FieldError>
+                        {entregar
+                          ? 'Selecciona un punto de entrega.'
+                          : 'Selecciona un punto de retiro.'}
+                      </FieldError>
                     )}
                   </Field>
 
-                  <Field data-invalid={showErrors && !e.ordenCompra.trim()}>
-                    <FieldLabel htmlFor={`oc-e-${pedido.id}`}>
+                  <Field data-invalid={showErrors && !d.ordenCompra.trim()}>
+                    <FieldLabel htmlFor={`oc-${pedido.id}`}>
                       Orden de compra
                     </FieldLabel>
                     <Input
-                      id={`oc-e-${pedido.id}`}
-                      value={e.ordenCompra}
+                      id={`oc-${pedido.id}`}
+                      value={d.ordenCompra}
                       onChange={(ev) =>
-                        setEntrega({ 
-                          ordenCompra: ev.target.value.replace(/\D/g, '').slice(0, 15)
+                        setDespacho({
+                          ordenCompra: ev.target.value.replace(/\D/g, '').slice(0, 15),
                         })
                       }
-                      aria-invalid={showErrors && !e.ordenCompra.trim()}
+                      aria-invalid={showErrors && !d.ordenCompra.trim()}
                       placeholder="Ej: 254701"
                     />
-                    {showErrors && !e.ordenCompra.trim() && (
+                    {showErrors && !d.ordenCompra.trim() && (
                       <FieldError>Ingresa la orden de compra.</FieldError>
                     )}
                   </Field>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field data-invalid={showErrors && !e.nombreRecibe.trim()}>
-                      <FieldLabel htmlFor={`recibe-${pedido.id}`}>
-                        Nombre de quien recibe
-                      </FieldLabel>
-                      <Input
-                        id={`recibe-${pedido.id}`}
-                        value={e.nombreRecibe}
-                        onChange={(ev) =>
-                          setEntrega({ nombreRecibe: ev.target.value })
-                        }
-                        aria-invalid={showErrors && !e.nombreRecibe.trim()}
-                        placeholder="Nombre completo"
+                  {/* Servicios adicionales: la nota vive dentro del grupo. */}
+                  <fieldset className="flex flex-col gap-3 rounded-lg border p-3">
+                    <Label className="text-sm font-medium">
+                      Servicios adicionales
+                    </Label>
+                    <div className="flex flex-wrap gap-x-8 gap-y-3">
+                      <SiNoField
+                        id={`estiba-${pedido.id}`}
+                        label="¿Requiere estiba?"
+                        value={d.necesitaEstiba}
+                        onChange={(v) => setDespacho({ necesitaEstiba: v })}
                       />
-                      {showErrors && !e.nombreRecibe.trim() && (
-                        <FieldError>Ingresa el nombre.</FieldError>
+                      {/* La descarga solo aplica a 'entregar'. */}
+                      {entregar && (
+                        <SiNoField
+                          id={`descarga-${pedido.id}`}
+                          label="¿Requiere descarga?"
+                          value={d.necesitaDescarga}
+                          onChange={(v) => setDespacho({ necesitaDescarga: v })}
+                        />
                       )}
-                    </Field>
-
-                    <Field data-invalid={showErrors && !/^\d{10}$/.test(e.celular)}>
-                      <FieldLabel htmlFor={`cel-e-${pedido.id}`}>
-                        Celular
-                      </FieldLabel>
-                      <Input
-                        id={`cel-e-${pedido.id}`}
-                        inputMode="numeric"
-                        value={e.celular}
-                        onChange={(ev) =>
-                          setEntrega({
-                            celular: ev.target.value.replace(/\D/g, '').slice(0, 10),
-                          })
-                        }
-                        aria-invalid={showErrors && !/^\d{10}$/.test(e.celular)}
-                        placeholder="3001234567"
+                    </div>
+                    <p className="flex items-start gap-1.5 text-xs text-amber-600">
+                      <AlertTriangle
+                        className="mt-0.5 size-3.5 shrink-0"
+                        aria-hidden
                       />
-                      {showErrors && !/^\d{10}$/.test(e.celular) && (
-                        <FieldError>Celular de 10 dígitos.</FieldError>
-                      )}
-                    </Field>
-                  </div>
-
-                  <Field
-                    data-invalid={
-                      showErrors &&
-                      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.correo)
-                    }
-                  >
-                    <FieldLabel htmlFor={`correo-${pedido.id}`}>
-                      Correo electrónico
-                    </FieldLabel>
-                    <Input
-                      id={`correo-${pedido.id}`}
-                      type="email"
-                      value={e.correo}
-                      onChange={(ev) => setEntrega({ correo: ev.target.value })}
-                      aria-invalid={
-                        showErrors &&
-                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.correo)
-                      }
-                      placeholder="correo@empresa.com"
-                    />
-                    {showErrors &&
-                      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.correo) && (
-                        <FieldError>Ingresa un correo válido.</FieldError>
-                      )}
-                  </Field>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field orientation="horizontal">
-                      <Switch
-                        id={`estiba-e-${pedido.id}`}
-                        checked={e.necesitaEstiba}
-                        onCheckedChange={(c) => setEntrega({ necesitaEstiba: c })}
-                      />
-                      <FieldLabel htmlFor={`estiba-e-${pedido.id}`}>
-                        ¿Necesita estiba?
-                      </FieldLabel>
-                    </Field>
-                    <Field orientation="horizontal">
-                      <Switch
-                        id={`descarga-${pedido.id}`}
-                        checked={e.necesitaDescarga}
-                        onCheckedChange={(c) =>
-                          setEntrega({ necesitaDescarga: c })
-                        }
-                      />
-                      <FieldLabel htmlFor={`descarga-${pedido.id}`}>
-                        ¿Descarga incluida?
-                      </FieldLabel>
-                    </Field>
-                  </div>
-
-                  <Field>
-                    <FieldLabel htmlFor={`obs-e-${pedido.id}`}>
-                      Observaciones (opcional)
-                    </FieldLabel>
-                    <Textarea
-                      id={`obs-e-${pedido.id}`}
-                      value={e.observaciones}
-                      onChange={(ev) =>
-                        setEntrega({ observaciones: ev.target.value })
-                      }
-                      placeholder="Indicaciones adicionales para la entrega..."
-                      rows={3}
-                    />
-                  </Field>
-                </FieldGroup>
-              </div>
-            )}
-
-            {/* Formulario dinámico Retira */}
-            {pedido.metodoDespacho === 'retira' && (
-              <div className="animate-in fade-in-0 slide-in-from-top-2 rounded-lg border bg-muted/30 p-4 duration-300">
-                <FieldGroup>
-                  <Field data-invalid={showErrors && !r.sedeDespachoId}>
-                    <FieldLabel>Sede</FieldLabel>
-                    <SedeCombobox
-                      value={r.sedeDespachoId}
-                      onChange={(v) => {
-                        // Cambiar de sede invalida el punto elegido (cascada).
-                        if (v !== r.sedeDespachoId) {
-                          setRetira({ sedeDespachoId: v, puntoEntregaId: '' })
-                        }
-                      }}
-                      invalid={showErrors && !r.sedeDespachoId}
-                      placeholder="Selecciona la sede de despacho"
-                    />
-                    {showErrors && !r.sedeDespachoId && (
-                      <FieldError>Selecciona una sede.</FieldError>
-                    )}
-                  </Field>
-
-                  <Field data-invalid={showErrors && !r.puntoEntregaId}>
-                    <FieldLabel>Punto de retiro</FieldLabel>
-                    <PuntoEntregaCombobox
-                      value={r.puntoEntregaId}
-                      onChange={(v) => setRetira({ puntoEntregaId: v })}
-                      sedeId={r.sedeDespachoId || null}
-                      disabled={!r.sedeDespachoId}
-                      invalid={showErrors && !r.puntoEntregaId}
-                      placeholder={
-                        r.sedeDespachoId
-                          ? 'Selecciona el punto de retiro'
-                          : 'Primero selecciona una sede'
-                      }
-                    />
-                    {showErrors && !r.puntoEntregaId && (
-                      <FieldError>Selecciona un punto de retiro.</FieldError>
-                    )}
-                  </Field>
-
-                  <Field data-invalid={showErrors && !r.ordenCompra.trim()}>
-                    <FieldLabel htmlFor={`oc-r-${pedido.id}`}>
-                      Orden de compra
-                    </FieldLabel>
-                    <Input
-                      id={`oc-r-${pedido.id}`}
-                      value={r.ordenCompra}
-                      onChange={(ev) =>
-                        setRetira({ 
-                          ordenCompra: ev.target.value.replace(/\D/g, '').slice(0, 15) 
-                        })
-                      }
-                      aria-invalid={showErrors && !r.ordenCompra.trim()}
-                      placeholder="Ej: 254701"
-                    />
-                    {showErrors && !r.ordenCompra.trim() && (
-                      <FieldError>Ingresa la orden de compra.</FieldError>
-                    )}
-                  </Field>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field data-invalid={showErrors && !r.nombreConductor.trim()}>
-                      <FieldLabel htmlFor={`cond-${pedido.id}`}>
-                        Nombre del conductor
-                      </FieldLabel>
-                      <Input
-                        id={`cond-${pedido.id}`}
-                        value={r.nombreConductor}
-                        onChange={(ev) =>
-                          setRetira({ nombreConductor: ev.target.value })
-                        }
-                        aria-invalid={showErrors && !r.nombreConductor.trim()}
-                        placeholder="Nombre completo"
-                      />
-                      {showErrors && !r.nombreConductor.trim() && (
-                        <FieldError>Ingresa el nombre.</FieldError>
-                      )}
-                    </Field>
-
-                    <Field data-invalid={showErrors && !/^\d{6,10}$/.test(r.cedula)}>
-                      <FieldLabel htmlFor={`cc-${pedido.id}`}>
-                        Cédula (CC)
-                      </FieldLabel>
-                      <Input
-                        id={`cc-${pedido.id}`}
-                        inputMode="numeric"
-                        value={r.cedula}
-                        onChange={(ev) =>
-                          setRetira({
-                            cedula: ev.target.value.replace(/\D/g, '').slice(0, 10),
-                          })
-                        }
-                        aria-invalid={showErrors && !/^\d{6,10}$/.test(r.cedula)}
-                        placeholder="Número de cédula"
-                      />
-                      {showErrors && !/^\d{6,10}$/.test(r.cedula) && (
-                        <FieldError>Cédula inválida.</FieldError>
-                      )}
-                    </Field>
-
-                    <Field data-invalid={showErrors && !/^[A-Z]{3}\d{3}$/.test(r.placa)}>
-                      <FieldLabel htmlFor={`placa-${pedido.id}`}>
-                        Placa del vehículo
-                      </FieldLabel>
-                      <Input
-                        id={`placa-${pedido.id}`}
-                        value={r.placa}
-                        onChange={(ev) =>
-                          setRetira({
-                            placa: ev.target.value
-                              .toUpperCase()
-                              .replace(/[^A-Z0-9]/g, '')
-                              .slice(0, 6),
-                          })
-                        }
-                        aria-invalid={showErrors && !/^[A-Z]{3}\d{3}$/.test(r.placa)}
-                        placeholder="ABC123"
-                        className="uppercase"
-                      />
-                      {showErrors && !/^[A-Z]{3}\d{3}$/.test(r.placa) ? (
-                        <FieldError>Formato de placa: ABC123.</FieldError>
-                      ) : (
-                        <FieldDescription>3 letras y 3 números.</FieldDescription>
-                      )}
-                    </Field>
-
-                    <Field data-invalid={showErrors && !/^\d{10}$/.test(r.celular)}>
-                      <FieldLabel htmlFor={`cel-r-${pedido.id}`}>
-                        Celular
-                      </FieldLabel>
-                      <Input
-                        id={`cel-r-${pedido.id}`}
-                        inputMode="numeric"
-                        value={r.celular}
-                        onChange={(ev) =>
-                          setRetira({
-                            celular: ev.target.value.replace(/\D/g, '').slice(0, 10),
-                          })
-                        }
-                        aria-invalid={showErrors && !/^\d{10}$/.test(r.celular)}
-                        placeholder="3001234567"
-                      />
-                      {showErrors && !/^\d{10}$/.test(r.celular) && (
-                        <FieldError>Celular de 10 dígitos.</FieldError>
-                      )}
-                    </Field>
-                  </div>
-
-                  <Field orientation="horizontal">
-                    <Switch
-                      id={`estiba-r-${pedido.id}`}
-                      checked={r.necesitaEstiba}
-                      onCheckedChange={(c) => setRetira({ necesitaEstiba: c })}
-                    />
-                    <FieldLabel htmlFor={`estiba-r-${pedido.id}`}>
-                      ¿Necesita estiba?
-                    </FieldLabel>
-                  </Field>
+                      Estos servicios generan un costo adicional en la factura.
+                    </p>
+                  </fieldset>
 
                   <Field>
                     <FieldLabel htmlFor={`obs-${pedido.id}`}>
@@ -605,14 +436,212 @@ export function PedidoCard({
                     </FieldLabel>
                     <Textarea
                       id={`obs-${pedido.id}`}
-                      value={r.observaciones}
+                      value={d.observaciones}
                       onChange={(ev) =>
-                        setRetira({ observaciones: ev.target.value })
+                        setDespacho({ observaciones: ev.target.value })
                       }
-                      placeholder="Indicaciones adicionales para el retiro..."
+                      placeholder={
+                        entregar
+                          ? 'Indicaciones adicionales para la entrega...'
+                          : 'Indicaciones adicionales para el retiro...'
+                      }
                       rows={3}
                     />
                   </Field>
+
+                  {/* Bloque de contacto: lo ÚNICO que cambia con el método. */}
+                  {entregar ? (
+                    <div
+                      key="contacto-entrega"
+                      className="animate-in fade-in-0 slide-in-from-top-2 flex flex-col gap-4 duration-300"
+                    >
+                      <h5 className="text-sm font-semibold text-brand">
+                        Datos de quien recibe
+                      </h5>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field data-invalid={showErrors && !ce.nombreRecibe.trim()}>
+                          <FieldLabel htmlFor={`recibe-${pedido.id}`}>
+                            Nombre de quien recibe
+                          </FieldLabel>
+                          <Input
+                            id={`recibe-${pedido.id}`}
+                            value={ce.nombreRecibe}
+                            onChange={(ev) =>
+                              setContactoEntrega({ nombreRecibe: ev.target.value })
+                            }
+                            aria-invalid={showErrors && !ce.nombreRecibe.trim()}
+                            placeholder="Nombre completo"
+                          />
+                          {showErrors && !ce.nombreRecibe.trim() && (
+                            <FieldError>Ingresa el nombre.</FieldError>
+                          )}
+                        </Field>
+
+                        <Field
+                          data-invalid={showErrors && !/^\d{10}$/.test(ce.celular)}
+                        >
+                          <FieldLabel htmlFor={`cel-e-${pedido.id}`}>
+                            Celular
+                          </FieldLabel>
+                          <Input
+                            id={`cel-e-${pedido.id}`}
+                            inputMode="numeric"
+                            value={ce.celular}
+                            onChange={(ev) =>
+                              setContactoEntrega({
+                                celular: ev.target.value.replace(/\D/g, '').slice(0, 10),
+                              })
+                            }
+                            aria-invalid={showErrors && !/^\d{10}$/.test(ce.celular)}
+                            placeholder="3001234567"
+                          />
+                          {showErrors && !/^\d{10}$/.test(ce.celular) && (
+                            <FieldError>Celular de 10 dígitos.</FieldError>
+                          )}
+                        </Field>
+                      </div>
+
+                      <Field
+                        data-invalid={
+                          showErrors &&
+                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ce.correo)
+                        }
+                      >
+                        <FieldLabel htmlFor={`correo-${pedido.id}`}>
+                          Correo electrónico
+                        </FieldLabel>
+                        <Input
+                          id={`correo-${pedido.id}`}
+                          type="email"
+                          value={ce.correo}
+                          onChange={(ev) =>
+                            setContactoEntrega({ correo: ev.target.value })
+                          }
+                          aria-invalid={
+                            showErrors &&
+                            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ce.correo)
+                          }
+                          placeholder="correo@empresa.com"
+                        />
+                        {showErrors &&
+                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ce.correo) && (
+                            <FieldError>Ingresa un correo válido.</FieldError>
+                          )}
+                      </Field>
+                    </div>
+                  ) : (
+                    <div
+                      key="contacto-retira"
+                      className="animate-in fade-in-0 slide-in-from-top-2 flex flex-col gap-4 duration-300"
+                    >
+                      <h5 className="text-sm font-semibold text-brand">
+                        Datos del conductor
+                      </h5>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field
+                          data-invalid={showErrors && !cr.nombreConductor.trim()}
+                        >
+                          <FieldLabel htmlFor={`cond-${pedido.id}`}>
+                            Nombre del conductor
+                          </FieldLabel>
+                          <Input
+                            id={`cond-${pedido.id}`}
+                            value={cr.nombreConductor}
+                            onChange={(ev) =>
+                              setContactoRetira({
+                                nombreConductor: ev.target.value,
+                              })
+                            }
+                            aria-invalid={showErrors && !cr.nombreConductor.trim()}
+                            placeholder="Nombre completo"
+                          />
+                          {showErrors && !cr.nombreConductor.trim() && (
+                            <FieldError>Ingresa el nombre.</FieldError>
+                          )}
+                        </Field>
+
+                        <Field
+                          data-invalid={showErrors && !/^\d{6,10}$/.test(cr.cedula)}
+                        >
+                          <FieldLabel htmlFor={`cc-${pedido.id}`}>
+                            Cédula (CC)
+                          </FieldLabel>
+                          <Input
+                            id={`cc-${pedido.id}`}
+                            inputMode="numeric"
+                            value={cr.cedula}
+                            onChange={(ev) =>
+                              setContactoRetira({
+                                cedula: ev.target.value.replace(/\D/g, '').slice(0, 10),
+                              })
+                            }
+                            aria-invalid={showErrors && !/^\d{6,10}$/.test(cr.cedula)}
+                            placeholder="Número de cédula"
+                          />
+                          {showErrors && !/^\d{6,10}$/.test(cr.cedula) && (
+                            <FieldError>Cédula inválida.</FieldError>
+                          )}
+                        </Field>
+
+                        <Field
+                          data-invalid={
+                            showErrors && !/^[A-Z]{3}\d{3}$/.test(cr.placa)
+                          }
+                        >
+                          <FieldLabel htmlFor={`placa-${pedido.id}`}>
+                            Placa del vehículo
+                          </FieldLabel>
+                          <Input
+                            id={`placa-${pedido.id}`}
+                            value={cr.placa}
+                            onChange={(ev) =>
+                              setContactoRetira({
+                                placa: ev.target.value
+                                  .toUpperCase()
+                                  .replace(/[^A-Z0-9]/g, '')
+                                  .slice(0, 6),
+                              })
+                            }
+                            aria-invalid={
+                              showErrors && !/^[A-Z]{3}\d{3}$/.test(cr.placa)
+                            }
+                            placeholder="ABC123"
+                            className="uppercase"
+                          />
+                          {showErrors && !/^[A-Z]{3}\d{3}$/.test(cr.placa) ? (
+                            <FieldError>Formato de placa: ABC123.</FieldError>
+                          ) : (
+                            <FieldDescription>
+                              3 letras y 3 números.
+                            </FieldDescription>
+                          )}
+                        </Field>
+
+                        <Field
+                          data-invalid={showErrors && !/^\d{10}$/.test(cr.celular)}
+                        >
+                          <FieldLabel htmlFor={`cel-r-${pedido.id}`}>
+                            Celular
+                          </FieldLabel>
+                          <Input
+                            id={`cel-r-${pedido.id}`}
+                            inputMode="numeric"
+                            value={cr.celular}
+                            onChange={(ev) =>
+                              setContactoRetira({
+                                celular: ev.target.value.replace(/\D/g, '').slice(0, 10),
+                              })
+                            }
+                            aria-invalid={showErrors && !/^\d{10}$/.test(cr.celular)}
+                            placeholder="3001234567"
+                          />
+                          {showErrors && !/^\d{10}$/.test(cr.celular) && (
+                            <FieldError>Celular de 10 dígitos.</FieldError>
+                          )}
+                        </Field>
+                      </div>
+                    </div>
+                  )}
                 </FieldGroup>
               </div>
             )}

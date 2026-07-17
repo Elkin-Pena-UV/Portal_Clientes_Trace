@@ -1,5 +1,9 @@
 import type { Pedido, Producto, PuntoEntrega, Sede } from './types'
-import { datosEntregaVacios, datosRetiraVacios } from './types'
+import {
+  contactoEntregaVacio,
+  contactoRetiraVacio,
+  despachoVacio,
+} from './types'
 
 /** Usuario mock de la sesión actual (prototipo sin auth real). */
 export const clienteActualMock = {
@@ -250,22 +254,25 @@ export const pedidosMock: Pedido[] = [
     moneda: 'COP',
     tipoProducto: 'saco',
     metodoDespacho: 'entregar',
-    datosEntrega: {
-      sedeDespachoId: 'sd1',
+    despacho: {
+      sedeId: 'sd1',
       puntoEntregaId: 's1',
       ordenCompra: 'OC-4410',
-      nombreRecibe: 'Marcela Ríos',
-      celular: '3104567890',
-      correo: 'mrios@restrepo.co',
       necesitaEstiba: true,
       necesitaDescarga: true,
       observaciones: '',
     },
-    datosRetira: datosRetiraVacios(),
+    contactoEntrega: {
+      nombreRecibe: 'Marcela Ríos',
+      celular: '3104567890',
+      correo: 'mrios@restrepo.co',
+    },
+    contactoRetira: contactoRetiraVacio(),
     items: [
       { productoId: 'p1', cantidad: 200, fechaEntrega: '2026-07-03' },
       { productoId: 'p2', cantidad: 80, fechaEntrega: '2026-07-03' },
     ],
+    sedeFacturaId: 'sd1',
   },
   {
     id: 'ped3',
@@ -283,19 +290,22 @@ export const pedidosMock: Pedido[] = [
     moneda: 'COP',
     tipoProducto: 'granel',
     metodoDespacho: 'entregar',
-    datosEntrega: {
-      sedeDespachoId: 'sd2',
+    despacho: {
+      sedeId: 'sd2',
       puntoEntregaId: 's3',
       ordenCompra: 'OC-4472',
-      nombreRecibe: 'Julián Vélez',
-      celular: '3009876543',
-      correo: 'jvelez@restrepo.co',
       necesitaEstiba: false,
       necesitaDescarga: false,
       observaciones: 'Coordinar ingreso de tractomula',
     },
-    datosRetira: datosRetiraVacios(),
+    contactoEntrega: {
+      nombreRecibe: 'Julián Vélez',
+      celular: '3009876543',
+      correo: 'jvelez@restrepo.co',
+    },
+    contactoRetira: contactoRetiraVacio(),
     items: [{ productoId: 'p10', cantidad: 34, fechaEntrega: '2026-07-18' }],
+    sedeFacturaId: null,
   },
   {
     id: 'ped4',
@@ -313,22 +323,25 @@ export const pedidosMock: Pedido[] = [
     moneda: 'COP',
     tipoProducto: 'saco',
     metodoDespacho: 'entregar',
-    datosEntrega: {
-      sedeDespachoId: 'sd3',
+    despacho: {
+      sedeId: 'sd3',
       puntoEntregaId: 's4',
       ordenCompra: 'OC-1207',
-      nombreRecibe: 'Andrea Lozano',
-      celular: '3157654321',
-      correo: 'alozano@ocvalle.com',
       necesitaEstiba: true,
       necesitaDescarga: false,
       observaciones: '',
     },
-    datosRetira: datosRetiraVacios(),
+    contactoEntrega: {
+      nombreRecibe: 'Andrea Lozano',
+      celular: '3157654321',
+      correo: 'alozano@ocvalle.com',
+    },
+    contactoRetira: contactoRetiraVacio(),
     items: [
       { productoId: 'p8', cantidad: 45, fechaEntrega: '2026-07-20' },
       { productoId: 'p9', cantidad: 30, fechaEntrega: '2026-07-20' },
     ],
+    sedeFacturaId: null,
   },
   {
     // Reproduce la fila 269554 de la pantalla real: badge "Aprobado" con
@@ -348,19 +361,23 @@ export const pedidosMock: Pedido[] = [
     moneda: 'COP',
     tipoProducto: 'saco',
     metodoDespacho: 'retira',
-    datosEntrega: datosEntregaVacios(),
-    datosRetira: {
-      sedeDespachoId: 'sd1',
+    despacho: {
+      sedeId: 'sd1',
       puntoEntregaId: 's2',
       ordenCompra: 'OC-8821',
+      necesitaEstiba: false,
+      necesitaDescarga: false,
+      observaciones: 'Retira en la mañana',
+    },
+    contactoEntrega: contactoEntregaVacio(),
+    contactoRetira: {
       nombreConductor: 'Pedro Salazar',
       cedula: '79456123',
       placa: 'XKD421',
       celular: '3159871234',
-      necesitaEstiba: false,
-      observaciones: 'Retira en la mañana',
     },
     items: [{ productoId: 'p7', cantidad: 60, fechaEntrega: '2026-07-06' }],
+    sedeFacturaId: 'sd2',
   },
   {
     id: 'ped5',
@@ -378,9 +395,11 @@ export const pedidosMock: Pedido[] = [
     moneda: 'COP',
     tipoProducto: 'saco',
     metodoDespacho: null,
-    datosEntrega: datosEntregaVacios(),
-    datosRetira: datosRetiraVacios(),
+    despacho: despachoVacio(),
+    contactoEntrega: contactoEntregaVacio(),
+    contactoRetira: contactoRetiraVacio(),
     items: [{ productoId: 'p3', cantidad: 25, fechaEntrega: null }],
+    sedeFacturaId: null,
   },
   {
     id: 'ped6',
@@ -398,8 +417,10 @@ export const pedidosMock: Pedido[] = [
     moneda: 'COP',
     tipoProducto: null,
     metodoDespacho: null,
-    datosEntrega: datosEntregaVacios(),
-    datosRetira: datosRetiraVacios(),
+    despacho: despachoVacio(),
+    contactoEntrega: contactoEntregaVacio(),
+    contactoRetira: contactoRetiraVacio(),
     items: [],
+    sedeFacturaId: null,
   },
 ]

@@ -25,6 +25,10 @@ export const ESTADO_COLOR: Partial<
     badge: 'bg-green-100 text-green-700 hover:bg-green-100',
     chart: '#16a34a',
   },
+  rechazado: {
+    badge: 'bg-red-100 text-red-700 hover:bg-red-100',
+    chart: '#dc2626',
+  },
 }
 
 /** Color de chart para estados sin entrada en el mapa. */

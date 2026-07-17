@@ -21,6 +21,8 @@ interface PortalContextValue {
   solicitarPedido: (id: string) => void
   /** Transición 'solicitado' → 'aprobado'. Ignora otros estados. */
   aprobarPedido: (id: string) => void
+  /** Transición 'solicitado' → 'rechazado'. Ignora otros estados. */
+  rechazarPedido: (id: string) => void
   /** Actualiza campos de un pedido. El estado solo cambia vía las transiciones. */
   actualizarPedido: (id: string, patch: Partial<Pedido>) => void
   getPedido: (id: string) => Pedido | undefined
@@ -145,6 +147,16 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     )
   }, [])
 
+  const rechazarPedido = React.useCallback((id: string) => {
+    setPedidos((prev) =>
+      prev.map((p): Pedido =>
+        p.id === id && p.estado === 'solicitado'
+          ? { ...p, estado: 'rechazado' }
+          : p,
+      ),
+    )
+  }, [])
+
   const actualizarPedido = React.useCallback(
     (id: string, patch: Partial<Pedido>) => {
       // Las transiciones de estado solo ocurren vía solicitarPedido/aprobarPedido.
@@ -219,6 +231,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       pedidos,
       solicitarPedido,
       aprobarPedido,
+      rechazarPedido,
       actualizarPedido,
       getPedido,
       addSede,
@@ -246,6 +259,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       pedidos,
       solicitarPedido,
       aprobarPedido,
+      rechazarPedido,
       actualizarPedido,
       getPedido,
       addSede,

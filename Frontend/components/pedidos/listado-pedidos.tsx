@@ -47,15 +47,12 @@ interface ListadoPedidosProps {
   estadoInicial?: EstadoPedido
 }
 
-/** Punto de entrega del pedido según su método de despacho. */
+/** Punto de entrega del pedido (bloque común: no depende del método). */
 function puntoDePedido(
   pedido: Pedido,
   getPuntoEntrega: (id: string) => PuntoEntrega | undefined,
 ): PuntoEntrega | undefined {
-  const puntoId =
-    pedido.metodoDespacho === 'retira'
-      ? pedido.datosRetira.puntoEntregaId
-      : pedido.datosEntrega.puntoEntregaId
+  const puntoId = pedido.despacho.puntoEntregaId
   return puntoId ? getPuntoEntrega(puntoId) : undefined
 }
 
@@ -99,6 +96,17 @@ interface ColumnaDef {
   defaultVisible: boolean
   headClass?: string
   cellClass?: string
+  /**
+   * Clases de columna fija durante el scroll horizontal (Cod y Acción).
+   * Se aplican tanto al encabezado como a la celda.
+   */
+  stickyClass?: string
+  /**
+   * Valor completo para el tooltip nativo (`title`). Su presencia marca la
+   * columna como truncable: la celda recibe `max-w-[220px] truncate`, así
+   * solo se acortan textos realmente largos.
+   */
+  cellTitle?: (ctx: CeldaCtx) => string | undefined
   renderCell: (ctx: CeldaCtx) => React.ReactNode
 }
 
@@ -108,6 +116,8 @@ const COLUMNAS: ColumnaDef[] = [
     label: 'Cod',
     hideable: false,
     defaultVisible: true,
+    stickyClass:
+      'sticky left-0 z-10 bg-card group-hover:bg-gray-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)]',
     renderCell: ({ pedido, basePath }) => (
       <Link
         href={`${basePath}/${pedido.id}`}
@@ -126,7 +136,7 @@ const COLUMNAS: ColumnaDef[] = [
   },
   {
     key: 'estadoCredito',
-    label: 'Estado crédito',
+    label: 'Estado',
     hideable: true,
     defaultVisible: false,
     renderCell: ({ pedido }) => (
@@ -138,13 +148,15 @@ const COLUMNAS: ColumnaDef[] = [
     label: 'Forma pago',
     hideable: true,
     defaultVisible: false,
+    cellTitle: ({ pedido }) => pedido.formaPago,
     renderCell: ({ pedido }) => pedido.formaPago,
   },
   {
     key: 'plazoCredito',
-    label: 'Plazo crédito',
+    label: 'Plazo',
     hideable: true,
     defaultVisible: false,
+    cellTitle: ({ pedido }) => pedido.plazoCredito,
     renderCell: ({ pedido }) => pedido.plazoCredito,
   },
   {
@@ -159,6 +171,7 @@ const COLUMNAS: ColumnaDef[] = [
     label: 'Solicitado',
     hideable: true,
     defaultVisible: true,
+    cellClass: 'whitespace-nowrap',
     renderCell: ({ pedido }) =>
       pedido.fechaSolicitud
         ? formatFecha(pedido.fechaSolicitud.slice(0, 10))
@@ -169,6 +182,7 @@ const COLUMNAS: ColumnaDef[] = [
     label: 'Tercero',
     hideable: true,
     defaultVisible: true,
+    cellTitle: ({ pedido }) => pedido.clienteNombre,
     renderCell: ({ pedido }) => pedido.clienteNombre,
   },
   {
@@ -180,9 +194,10 @@ const COLUMNAS: ColumnaDef[] = [
   },
   {
     key: 'puntoEntrega',
-    label: 'Punto entrega',
+    label: 'Entrega',
     hideable: true,
     defaultVisible: true,
+    cellTitle: ({ sede }) => sede?.nombre,
     renderCell: ({ sede }) => sede?.nombre ?? '—',
   },
   {
@@ -191,6 +206,7 @@ const COLUMNAS: ColumnaDef[] = [
     hideable: true,
     defaultVisible: false,
     cellClass: 'text-muted-foreground',
+    cellTitle: ({ pedido }) => pedido.creadorEmail,
     renderCell: ({ pedido }) => pedido.creadorEmail,
   },
   {
@@ -208,7 +224,7 @@ const COLUMNAS: ColumnaDef[] = [
     hideable: true,
     defaultVisible: true,
     headClass: 'text-right',
-    cellClass: 'text-right font-semibold tabular-nums',
+    cellClass: 'whitespace-nowrap text-right font-semibold tabular-nums',
     renderCell: ({ total }) => formatCOP(total),
   },
   {
@@ -223,6 +239,8 @@ const COLUMNAS: ColumnaDef[] = [
     label: 'Acción',
     hideable: false,
     defaultVisible: true,
+    stickyClass:
+      'sticky right-0 z-10 bg-card group-hover:bg-gray-50 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.12)]',
     headClass: 'text-right',
     cellClass: 'text-right',
     renderCell: ({ pedido, basePath }) => (
@@ -469,52 +487,56 @@ export function ListadoPedidos({
         pedidos encontrados
       </p>
 
-      {/* Tabla en desktop (scroll horizontal: son muchas columnas) */}
+      {/* Tabla en desktop, enfoque híbrido: ancho natural con un mínimo para
+          que el contenido respire; si el viewport es más angosto aparece el
+          scroll horizontal (el contenedor del componente Table ya lo trae) y
+          Cod/Acción quedan fijas para no perder identificador ni acción. */}
       <Card className="hidden overflow-hidden py-0 md:block">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-b-2 border-border hover:bg-transparent">
-                {columnasVisibles.map((c) => (
-                  <TableHead
-                    key={c.key}
-                    className={`text-xs font-semibold uppercase text-muted-foreground whitespace-nowrap ${c.headClass ?? ''}`}
-                  >
-                    {c.label}
-                  </TableHead>
-                ))}
+        <Table className="w-full min-w-[1050px]">
+          <TableHeader>
+            <TableRow className="border-b-2 border-border hover:bg-transparent">
+              {columnasVisibles.map((c) => (
+                <TableHead
+                  key={c.key}
+                  className={`px-2 py-2 text-[11px] font-semibold uppercase whitespace-nowrap text-muted-foreground ${c.stickyClass ?? ''} ${c.headClass ?? ''}`}
+                >
+                  {c.label}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtrados.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={columnasVisibles.length}
+                  className="py-10 text-center text-sm text-muted-foreground"
+                >
+                  No hay pedidos para estos filtros.
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtrados.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell
-                    colSpan={columnasVisibles.length}
-                    className="py-10 text-center text-sm text-muted-foreground"
-                  >
-                    No hay pedidos para estos filtros.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtrados.map((pedido) => {
-                  const ctx = ctxDe(pedido)
-                  return (
-                    <TableRow key={pedido.id} className="hover:bg-gray-50">
-                      {columnasVisibles.map((c) => (
-                        <TableCell
-                          key={c.key}
-                          className={`py-4 text-sm whitespace-nowrap ${c.cellClass ?? ''}`}
-                        >
-                          {c.renderCell(ctx)}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+            ) : (
+              filtrados.map((pedido) => {
+                const ctx = ctxDe(pedido)
+                return (
+                  <TableRow key={pedido.id} className="group hover:bg-gray-50">
+                    {columnasVisibles.map((c) => (
+                      <TableCell
+                        key={c.key}
+                        title={c.cellTitle?.(ctx)}
+                        className={`px-2 py-2 text-xs ${
+                          c.cellTitle ? 'max-w-[220px] truncate' : ''
+                        } ${c.stickyClass ?? ''} ${c.cellClass ?? ''}`}
+                      >
+                        {c.renderCell(ctx)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
       </Card>
 
       {/* Tarjetas en móvil */}

@@ -52,32 +52,35 @@ export interface Producto {
 
 export type MetodoDespacho = 'entregar' | 'retira'
 
-export interface DatosEntrega {
-  /** Sede (planta) de despacho seleccionada en el paso 1 de la cascada. */
-  sedeDespachoId: string
-  /** Punto de entrega del cliente (debe pertenecer a la sede de despacho). */
+/**
+ * Datos comunes a cualquier método de despacho. Al alternar Entregar/Retira
+ * este bloque NO se reinicia: solo cambia el bloque de contacto.
+ */
+export interface DatosDespacho {
+  /** Sede (planta) que despacha, paso 1 de la cascada. */
+  sedeId: string
+  /** Punto de entrega (Entregar) o de retiro (Retira); pertenece a la sede. */
   puntoEntregaId: string
   ordenCompra: string
-  nombreRecibe: string
-  celular: string
-  correo: string
   necesitaEstiba: boolean
+  /** Solo aplica a 'entregar'; en 'retira' siempre false. */
   necesitaDescarga: boolean
   observaciones: string
 }
 
-export interface DatosRetira {
-  /** Sede (planta) de despacho seleccionada en el paso 1 de la cascada. */
-  sedeDespachoId: string
-  /** Punto de retiro del cliente (debe pertenecer a la sede de despacho). */
-  puntoEntregaId: string
-  ordenCompra: string
+/** Contacto cuando el método es 'entregar'. */
+export interface ContactoEntrega {
+  nombreRecibe: string
+  celular: string
+  correo: string
+}
+
+/** Contacto cuando el método es 'retira'. */
+export interface ContactoRetira {
   nombreConductor: string
   cedula: string
   placa: string
   celular: string
-  necesitaEstiba: boolean
-  observaciones: string
 }
 
 export interface ItemPedido {
@@ -91,12 +94,17 @@ export interface ItemPedido {
  * Ciclo de vida de un pedido. Extensible: los estados posteriores
  * (despacho, entrega, etc.) se agregan aquí cuando existan sus vistas.
  */
-export type EstadoPedido = 'en_construccion' | 'solicitado' | 'aprobado'
+export type EstadoPedido =
+  | 'en_construccion'
+  | 'solicitado'
+  | 'aprobado'
+  | 'rechazado'
 
 export const ESTADO_LABEL: Record<EstadoPedido, string> = {
   en_construccion: 'En construcción',
   solicitado: 'Solicitado',
   aprobado: 'Aprobado',
+  rechazado: 'Rechazado',
 }
 
 export type Rol = 'cliente' | 'servicio' | 'admin'
@@ -140,31 +148,42 @@ export interface Pedido {
   moneda: string
   tipoProducto: TipoProducto | null
   metodoDespacho: MetodoDespacho | null
-  datosEntrega: DatosEntrega
-  datosRetira: DatosRetira
+  /** Bloque común de despacho: se conserva al alternar el método. */
+  despacho: DatosDespacho
+  /**
+   * Ambos contactos coexisten siempre: al cambiar de método NO se limpia el
+   * otro, solo se deja de mostrar. Si el usuario vuelve, sus datos siguen ahí.
+   */
+  contactoEntrega: ContactoEntrega
+  contactoRetira: ContactoRetira
   items: ItemPedido[]
+  /**
+   * Sede que emite la factura del pedido (puede diferir de la sede que
+   * despacha). La asigna SAC desde el detalle de Gestión: NO viene del pedido
+   * del cliente ni debe aparecer en los formularios del portal del cliente.
+   * null = "Sin asignar".
+   */
+  sedeFacturaId: string | null
 }
 
-export const datosEntregaVacios = (): DatosEntrega => ({
-  sedeDespachoId: '',
+export const despachoVacio = (): DatosDespacho => ({
+  sedeId: '',
   puntoEntregaId: '',
   ordenCompra: '',
-  nombreRecibe: '',
-  celular: '',
-  correo: '',
   necesitaEstiba: false,
   necesitaDescarga: false,
   observaciones: '',
 })
 
-export const datosRetiraVacios = (): DatosRetira => ({
-  sedeDespachoId: '',
-  puntoEntregaId: '',
-  ordenCompra: '',
+export const contactoEntregaVacio = (): ContactoEntrega => ({
+  nombreRecibe: '',
+  celular: '',
+  correo: '',
+})
+
+export const contactoRetiraVacio = (): ContactoRetira => ({
   nombreConductor: '',
   cedula: '',
   placa: '',
   celular: '',
-  necesitaEstiba: false,
-  observaciones: '',
 })

@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { toast } from 'sonner'
-import { CheckCircle2, ClipboardList, Loader2, Plus } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ClipboardList, Loader2, Plus } from 'lucide-react'
 import type { Pedido } from '@/lib/types'
 import {
   clonarPedido,
@@ -69,6 +69,19 @@ export function OrderBuilder() {
   const totalUnidadesGlobal = pedidos.reduce((acc, p) => acc + totalUnidades(p), 0)
   const totalProductos = pedidos.reduce((acc, p) => acc + p.items.length, 0)
   const totales = totalesGlobales(pedidos, getProducto)
+
+  // Servicios con costo adicional activos en algún pedido (estiba/descarga).
+  // Mientras el tarifario no exponga valores, el total no los suma: la franja
+  // del resumen deja explícito que se agregarán al total.
+  const serviciosAdicionales = React.useMemo(() => {
+    const activos = new Set<'estiba' | 'descarga'>()
+    for (const p of pedidos) {
+      if (p.despacho.necesitaEstiba) activos.add('estiba')
+      // En 'retira' la descarga se fuerza a false, así que no suma.
+      if (p.despacho.necesitaDescarga) activos.add('descarga')
+    }
+    return Array.from(activos)
+  }, [pedidos])
 
   // El stepper global refleja el primer paso pendiente entre todos los pedidos.
   const stepperCurrent = React.useMemo(() => {
@@ -188,6 +201,15 @@ export function OrderBuilder() {
 
       {/* Resumen sticky — Responsive */}
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white backdrop-blur supports-[backdrop-filter]:bg-white">
+        {serviciosAdicionales.length > 0 && (
+          <div className="border-b border-[#ff6600]/20 bg-[#ff6600]/10">
+            <p className="mx-auto flex w-full max-w-6xl items-center gap-1.5 px-4 py-1.5 text-xs font-medium text-[#ff6600]">
+              <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+              El total sumará un costo adicional por servicio de{' '}
+              {serviciosAdicionales.join(' y ')}.
+            </p>
+          </div>
+        )}
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-4 py-3 md:gap-4 md:py-4">
           {/* Left: Order summary */}
           <div className="flex items-center gap-2 text-xs md:text-sm min-w-0">

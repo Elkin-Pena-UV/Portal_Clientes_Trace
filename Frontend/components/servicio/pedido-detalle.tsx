@@ -2,12 +2,23 @@
 
 import * as React from 'react'
 import Image from 'next/image'
-import { CheckCircle2, Lock, MapPin, Save, Store, Truck } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Lock,
+  MapPin,
+  Save,
+  Store,
+  Truck,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import type {
-  DatosEntrega,
-  DatosRetira,
+  ContactoEntrega,
+  ContactoRetira,
+  DatosDespacho,
   ItemPedido,
+  MetodoDespacho,
   Pedido,
 } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
@@ -20,6 +31,15 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -33,44 +53,73 @@ import {
 
 /**
  * SUPOSICIÓN A CONFIRMAR (default pragmático de Fase 2):
- * tras "Solicitado" son editables los datos de contacto, las observaciones
+ * tras "Solicitado" son editables método de despacho, sede/punto de entrega,
+ * orden de compra, estiba/descarga, los datos de contacto, las observaciones
  * y la fecha de entrega de cada item; NO son editables productos, cantidades
  * ni precios. Una vez "Aprobado" se bloquea toda edición.
+ *
+ * El borrador mantiene AMBOS objetos (entrega y retira): cambiar el método de
+ * despacho no pierde lo ya cargado del otro método.
  */
 interface Borrador {
-  datosEntrega: DatosEntrega
-  datosRetira: DatosRetira
+  metodoDespacho: MetodoDespacho | null
+  /** Sede que factura: solo se asigna desde esta vista de Gestión/Servicio. */
+  sedeFacturaId: string | null
+  despacho: DatosDespacho
+  contactoEntrega: ContactoEntrega
+  contactoRetira: ContactoRetira
   items: ItemPedido[]
 }
 
 function borradorDesde(pedido: Pedido): Borrador {
   return {
-    datosEntrega: { ...pedido.datosEntrega },
-    datosRetira: { ...pedido.datosRetira },
+    metodoDespacho: pedido.metodoDespacho,
+    sedeFacturaId: pedido.sedeFacturaId,
+    despacho: { ...pedido.despacho },
+    contactoEntrega: { ...pedido.contactoEntrega },
+    contactoRetira: { ...pedido.contactoRetira },
     items: pedido.items.map((i) => ({ ...i })),
   }
 }
 
+const METODO_ITEMS = [
+  { value: 'entregar', label: 'Entregar' },
+  { value: 'retira', label: 'Retira' },
+]
+
 export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
-  const { getProducto, getSede, getPuntoEntrega, actualizarPedido, aprobarPedido } =
-    usePortal()
+  const {
+    getProducto,
+    getPuntoEntrega,
+    actualizarPedido,
+    aprobarPedido,
+    sedes,
+    puntosEntrega,
+  } = usePortal()
   const [borrador, setBorrador] = React.useState<Borrador>(() =>
     borradorDesde(pedido),
   )
 
   const editable = pedido.estado !== 'aprobado'
-  const entregar = pedido.metodoDespacho === 'entregar'
-  const datos = entregar ? pedido.datosEntrega : pedido.datosRetira
-  const punto = getPuntoEntrega(datos.puntoEntregaId)
-  const sedeDespacho = getSede(datos.sedeDespachoId)
+  const entregar = borrador.metodoDespacho !== 'retira'
+  const despachoB = borrador.despacho
+  const punto = getPuntoEntrega(despachoB.puntoEntregaId)
   const totales = totalesPedido(pedido, getProducto)
   const dirty =
     JSON.stringify(borrador) !== JSON.stringify(borradorDesde(pedido))
 
-  const setEntrega = (patch: Partial<DatosEntrega>) =>
-    setBorrador((b) => ({ ...b, datosEntrega: { ...b.datosEntrega, ...patch } }))
-  const setRetira = (patch: Partial<DatosRetira>) =>
-    setBorrador((b) => ({ ...b, datosRetira: { ...b.datosRetira, ...patch } }))
+  const setDespacho = (patch: Partial<DatosDespacho>) =>
+    setBorrador((b) => ({ ...b, despacho: { ...b.despacho, ...patch } }))
+  const setContactoEntrega = (patch: Partial<ContactoEntrega>) =>
+    setBorrador((b) => ({
+      ...b,
+      contactoEntrega: { ...b.contactoEntrega, ...patch },
+    }))
+  const setContactoRetira = (patch: Partial<ContactoRetira>) =>
+    setBorrador((b) => ({
+      ...b,
+      contactoRetira: { ...b.contactoRetira, ...patch },
+    }))
   const setFechaItem = (productoId: string, fechaEntrega: string) =>
     setBorrador((b) => ({
       ...b,
@@ -78,6 +127,39 @@ export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
         i.productoId === productoId ? { ...i, fechaEntrega } : i,
       ),
     }))
+
+  // Cascada (igual que en "Crear orden"): cambiar de sede invalida el punto.
+  const cambiarSede = (sedeId: string) => {
+    if (sedeId === despachoB.sedeId) return
+    setDespacho({ sedeId, puntoEntregaId: '' })
+  }
+
+  const sedeItems = React.useMemo(
+    () =>
+      sedes
+        .filter((s) => s.activa)
+        .map((s) => ({ value: s.id, label: s.nombre })),
+    [sedes],
+  )
+  const puntosDisponibles = React.useMemo(
+    () => puntosEntrega.filter((p) => p.sedeDespachoId === despachoB.sedeId),
+    [puntosEntrega, despachoB.sedeId],
+  )
+  const puntoItems = React.useMemo(
+    () =>
+      puntosDisponibles.map((p) => ({
+        value: p.id,
+        label: `${p.nombre} · ${p.ciudad}`,
+      })),
+    [puntosDisponibles],
+  )
+  const sedeFacturaItems = React.useMemo(
+    () =>
+      sedes
+        .filter((s) => s.activa)
+        .map((s) => ({ value: s.id, label: `${s.nombre} · ${s.ciudad}` })),
+    [sedes],
+  )
 
   const guardar = () => {
     actualizarPedido(pedido.id, borrador)
@@ -96,10 +178,19 @@ export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h2 className="text-lg font-bold text-[#00359a]">{pedido.numero}</h2>
           <EstadoBadge estado={pedido.estado} />
-          <Badge variant={entregar ? 'default' : 'secondary'} className="gap-1">
-            {entregar ? <Truck className="size-3" /> : <Store className="size-3" />}
-            {entregar ? 'Entregar' : 'Retira'}
-          </Badge>
+          {borrador.metodoDespacho && (
+            <Badge
+              variant={entregar ? 'default' : 'secondary'}
+              className="gap-1"
+            >
+              {entregar ? (
+                <Truck className="size-3" />
+              ) : (
+                <Store className="size-3" />
+              )}
+              {entregar ? 'Entregar' : 'Retira'}
+            </Badge>
+          )}
           {!editable && (
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <Lock className="size-3.5" />
@@ -107,21 +198,106 @@ export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
             </span>
           )}
         </div>
-        <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        {/* Fila 1: Cliente · Fecha — Fila 2: Sede · Punto · Sede factura */}
+        <div className="grid items-start gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <InfoItem label="Cliente" value={pedido.clienteNombre} />
           <InfoItem
             label="Fecha de creación"
             value={formatFecha(pedido.fechaCreacion.slice(0, 10))}
           />
-          <InfoItem
-            label="Sede"
-            value={sedeDespacho?.nombre ?? '—'}
-          />
-          <InfoItem
-            label={entregar ? 'Punto de entrega' : 'Punto de retiro'}
-            value={punto ? `${punto.nombre} · ${punto.ciudad}` : '—'}
-            icon={<MapPin className="size-3.5" />}
-          />
+          {/* col-start fuerza el salto: la 3.ª columna de la fila 1 queda vacía. */}
+          <Campo label="Sede" className="lg:col-start-1">
+            <Select
+              items={sedeItems}
+              value={despachoB.sedeId || null}
+              onValueChange={(v) => cambiarSede((v as string) ?? '')}
+              disabled={!editable}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona la sede" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {sedeItems.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Campo>
+          <Campo label={entregar ? 'Punto de entrega' : 'Punto de retiro'}>
+            <Select
+              items={puntoItems}
+              value={despachoB.puntoEntregaId || null}
+              onValueChange={(v) =>
+                setDespacho({ puntoEntregaId: (v as string) ?? '' })
+              }
+              disabled={!editable || !despachoB.sedeId}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue
+                  placeholder={
+                    despachoB.sedeId
+                      ? 'Selecciona el punto'
+                      : 'Primero selecciona una sede'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {puntoItems.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            {/* Dirección resuelta del punto seleccionado. */}
+            {punto && (
+              <span className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="mt-0.5 size-3.5 shrink-0 text-[#00359a]" />
+                <span className="text-pretty">
+                  {[punto.direccion, punto.ciudad].filter(Boolean).join(', ')}
+                </span>
+              </span>
+            )}
+          </Campo>
+          <Campo label="Sede factura">
+            <Select
+              items={sedeFacturaItems}
+              value={borrador.sedeFacturaId}
+              onValueChange={(v) =>
+                setBorrador((b) => ({
+                  ...b,
+                  sedeFacturaId: (v as string) ?? null,
+                }))
+              }
+              disabled={!editable}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue
+                  placeholder={
+                    <span className="flex items-center gap-1 text-xs text-[#ff6600]">
+                      <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+                      Sin asignar
+                    </span>
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {sedeFacturaItems.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Campo>
         </div>
         <div className="flex flex-wrap gap-2">
           {pedido.estado === 'solicitado' && (
@@ -148,113 +324,168 @@ export function PedidoDetalle({ pedido }: { pedido: Pedido }) {
       <Card className="gap-4 p-4 md:p-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-semibold text-brand">
-            {entregar ? 'Datos de entrega' : 'Datos de retiro'}
+            Datos de despacho
           </h3>
           <p className="text-xs text-muted-foreground">
             Contacto y observaciones editables mientras el pedido no esté
-            aprobado (suposición de Fase 2 a confirmar).
+            aprobado.
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <InfoItem
-            label="Orden de compra"
-            value={
-              entregar
-                ? pedido.datosEntrega.ordenCompra
-                : pedido.datosRetira.ordenCompra
-            }
-          />
+        <div className="grid items-start gap-4 sm:grid-cols-2">
+          {/* Celda izquierda apilada: equilibra la altura del sub-bloque vecino. */}
+          <div className="flex flex-col gap-4">
+            <Campo label="Orden de compra">
+              <Input
+                value={despachoB.ordenCompra}
+                onChange={(e) => setDespacho({ ordenCompra: e.target.value })}
+                disabled={!editable}
+              />
+            </Campo>
+            <Campo label="Método de despacho">
+              <Select
+                items={METODO_ITEMS}
+                value={borrador.metodoDespacho}
+                onValueChange={(v) => {
+                  const metodo = v as MetodoDespacho
+                  setBorrador((b) => ({
+                    ...b,
+                    metodoDespacho: metodo,
+                    // La descarga solo aplica a 'entregar': en Retira va off.
+                    despacho:
+                      metodo === 'retira'
+                        ? { ...b.despacho, necesitaDescarga: false }
+                        : b.despacho,
+                  }))
+                }}
+                disabled={!editable}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecciona el método" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {METODO_ITEMS.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Campo>
+          </div>
+          {/* Sub-bloque con altura propia: la nota no empuja las celdas vecinas. */}
+          <fieldset className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+              Servicios adicionales
+            </Label>
+            <div className="flex flex-wrap gap-x-8 gap-y-3">
+              <CampoSiNo
+                id="estiba"
+                label="¿Requiere estiba?"
+                value={despachoB.necesitaEstiba}
+                onChange={(v) => setDespacho({ necesitaEstiba: v })}
+                disabled={!editable}
+              />
+              {/* En "Retira" solo aplica estiba: no hay descarga en planta. */}
+              {entregar && (
+                <CampoSiNo
+                  id="descarga"
+                  label="¿Requiere descarga?"
+                  value={despachoB.necesitaDescarga}
+                  onChange={(v) => setDespacho({ necesitaDescarga: v })}
+                  disabled={!editable}
+                />
+              )}
+            </div>
+            <p className="flex items-start gap-1.5 text-xs text-amber-600">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              Estos servicios generan un costo adicional en la factura.
+            </p>
+          </fieldset>
+          {/* Bloque de contacto: lo único que se intercambia con el método. */}
           {entregar ? (
-            <InfoItem
-              label="Estiba / Descarga"
-              value={`${pedido.datosEntrega.necesitaEstiba ? 'Sí' : 'No'} / ${
-                pedido.datosEntrega.necesitaDescarga ? 'Sí' : 'No'
-              }`}
-            />
+            <>
+              <Campo label="Recibe">
+                <Input
+                  value={borrador.contactoEntrega.nombreRecibe}
+                  onChange={(e) =>
+                    setContactoEntrega({ nombreRecibe: e.target.value })
+                  }
+                  disabled={!editable}
+                />
+              </Campo>
+              <Campo label="Celular">
+                <Input
+                  value={borrador.contactoEntrega.celular}
+                  onChange={(e) =>
+                    setContactoEntrega({ celular: e.target.value })
+                  }
+                  disabled={!editable}
+                />
+              </Campo>
+              <Campo label="Correo">
+                <Input
+                  type="email"
+                  value={borrador.contactoEntrega.correo}
+                  onChange={(e) =>
+                    setContactoEntrega({ correo: e.target.value })
+                  }
+                  disabled={!editable}
+                />
+              </Campo>
+            </>
           ) : (
-            <InfoItem
-              label="Estiba"
-              value={pedido.datosRetira.necesitaEstiba ? 'Sí' : 'No'}
-            />
+            <>
+              <Campo label="Conductor">
+                <Input
+                  value={borrador.contactoRetira.nombreConductor}
+                  onChange={(e) =>
+                    setContactoRetira({ nombreConductor: e.target.value })
+                  }
+                  disabled={!editable}
+                />
+              </Campo>
+              <Campo label="Cédula">
+                <Input
+                  value={borrador.contactoRetira.cedula}
+                  onChange={(e) =>
+                    setContactoRetira({ cedula: e.target.value })
+                  }
+                  disabled={!editable}
+                />
+              </Campo>
+              <Campo label="Placa">
+                <Input
+                  value={borrador.contactoRetira.placa}
+                  onChange={(e) =>
+                    setContactoRetira({ placa: e.target.value.toUpperCase() })
+                  }
+                  disabled={!editable}
+                />
+              </Campo>
+              <Campo label="Celular">
+                <Input
+                  value={borrador.contactoRetira.celular}
+                  onChange={(e) =>
+                    setContactoRetira({ celular: e.target.value })
+                  }
+                  disabled={!editable}
+                />
+              </Campo>
+            </>
           )}
+          {/* Observaciones es común: no se reinicia al alternar el método. */}
+          <Campo label="Observaciones" className="sm:col-span-2">
+            <Textarea
+              value={despachoB.observaciones}
+              onChange={(e) => setDespacho({ observaciones: e.target.value })}
+              disabled={!editable}
+              rows={2}
+            />
+          </Campo>
         </div>
-
-        {entregar ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Campo label="Recibe">
-              <Input
-                value={borrador.datosEntrega.nombreRecibe}
-                onChange={(e) => setEntrega({ nombreRecibe: e.target.value })}
-                disabled={!editable}
-              />
-            </Campo>
-            <Campo label="Celular">
-              <Input
-                value={borrador.datosEntrega.celular}
-                onChange={(e) => setEntrega({ celular: e.target.value })}
-                disabled={!editable}
-              />
-            </Campo>
-            <Campo label="Correo">
-              <Input
-                type="email"
-                value={borrador.datosEntrega.correo}
-                onChange={(e) => setEntrega({ correo: e.target.value })}
-                disabled={!editable}
-              />
-            </Campo>
-            <Campo label="Observaciones" className="sm:col-span-2">
-              <Textarea
-                value={borrador.datosEntrega.observaciones}
-                onChange={(e) => setEntrega({ observaciones: e.target.value })}
-                disabled={!editable}
-                rows={2}
-              />
-            </Campo>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Campo label="Conductor">
-              <Input
-                value={borrador.datosRetira.nombreConductor}
-                onChange={(e) => setRetira({ nombreConductor: e.target.value })}
-                disabled={!editable}
-              />
-            </Campo>
-            <Campo label="Cédula">
-              <Input
-                value={borrador.datosRetira.cedula}
-                onChange={(e) => setRetira({ cedula: e.target.value })}
-                disabled={!editable}
-              />
-            </Campo>
-            <Campo label="Placa">
-              <Input
-                value={borrador.datosRetira.placa}
-                onChange={(e) =>
-                  setRetira({ placa: e.target.value.toUpperCase() })
-                }
-                disabled={!editable}
-              />
-            </Campo>
-            <Campo label="Celular">
-              <Input
-                value={borrador.datosRetira.celular}
-                onChange={(e) => setRetira({ celular: e.target.value })}
-                disabled={!editable}
-              />
-            </Campo>
-            <Campo label="Observaciones" className="sm:col-span-2">
-              <Textarea
-                value={borrador.datosRetira.observaciones}
-                onChange={(e) => setRetira({ observaciones: e.target.value })}
-                disabled={!editable}
-                rows={2}
-              />
-            </Campo>
-          </div>
-        )}
       </Card>
 
       {/* Productos */}
@@ -413,6 +644,47 @@ function Campo({
         {label}
       </Label>
       {children}
+    </div>
+  )
+}
+
+function CampoSiNo({
+  id,
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string
+  label: string
+  value: boolean
+  onChange: (value: boolean) => void
+  disabled?: boolean
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+        {label}
+      </Label>
+      <RadioGroup
+        value={value ? 'si' : 'no'}
+        onValueChange={(v) => onChange(v === 'si')}
+        disabled={disabled}
+        className="flex h-8 items-center gap-4"
+      >
+        <span className="flex items-center gap-2">
+          <RadioGroupItem value="si" id={`${id}-si`} />
+          <Label htmlFor={`${id}-si`} className="cursor-pointer font-normal">
+            Sí
+          </Label>
+        </span>
+        <span className="flex items-center gap-2">
+          <RadioGroupItem value="no" id={`${id}-no`} />
+          <Label htmlFor={`${id}-no`} className="cursor-pointer font-normal">
+            No
+          </Label>
+        </span>
+      </RadioGroup>
     </div>
   )
 }

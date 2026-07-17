@@ -53,15 +53,11 @@ export function PedidosReview({
       >
         {pedidos.map((imp, index) => {
           const { pedido, origen } = imp
-          const sede = getPuntoEntrega(
-            pedido.metodoDespacho === 'entregar'
-              ? pedido.datosEntrega.puntoEntregaId
-              : pedido.datosRetira.puntoEntregaId,
-          )
+          const sede = getPuntoEntrega(pedido.despacho.puntoEntregaId)
           const entregar = pedido.metodoDespacho === 'entregar'
           const contacto = entregar
-            ? pedido.datosEntrega.nombreRecibe
-            : pedido.datosRetira.nombreConductor
+            ? pedido.contactoEntrega.nombreRecibe
+            : pedido.contactoRetira.nombreConductor
           const totales = totalesPedido(pedido, getProducto)
 
           return (
@@ -116,58 +112,48 @@ export function PedidosReview({
                       label="Celular"
                       value={
                         entregar
-                          ? pedido.datosEntrega.celular
-                          : pedido.datosRetira.celular
+                          ? pedido.contactoEntrega.celular
+                          : pedido.contactoRetira.celular
                       }
                     />
                     <InfoItem
                       label="Orden de compra"
-                      value={
-                        entregar
-                          ? pedido.datosEntrega.ordenCompra
-                          : pedido.datosRetira.ordenCompra
-                      }
+                      value={pedido.despacho.ordenCompra}
                     />
                     {entregar ? (
                       <>
                         <InfoItem
                           label="Correo"
-                          value={pedido.datosEntrega.correo}
+                          value={pedido.contactoEntrega.correo}
                         />
                         <InfoItem
                           label="Estiba / Descarga"
-                          value={`${pedido.datosEntrega.necesitaEstiba ? 'Sí' : 'No'} / ${
-                            pedido.datosEntrega.necesitaDescarga ? 'Sí' : 'No'
+                          value={`${pedido.despacho.necesitaEstiba ? 'Sí' : 'No'} / ${
+                            pedido.despacho.necesitaDescarga ? 'Sí' : 'No'
                           }`}
                         />
-                        {pedido.datosEntrega.observaciones && (
-                          <InfoItem
-                            label="Observaciones"
-                            value={pedido.datosEntrega.observaciones}
-                          />
-                        )}
                       </>
                     ) : (
                       <>
                         <InfoItem
                           label="Cédula"
-                          value={pedido.datosRetira.cedula}
+                          value={pedido.contactoRetira.cedula}
                         />
                         <InfoItem
                           label="Placa"
-                          value={pedido.datosRetira.placa}
+                          value={pedido.contactoRetira.placa}
                         />
                         <InfoItem
                           label="Estiba"
-                          value={pedido.datosRetira.necesitaEstiba ? 'Sí' : 'No'}
+                          value={pedido.despacho.necesitaEstiba ? 'Sí' : 'No'}
                         />
-                        {pedido.datosRetira.observaciones && (
-                          <InfoItem
-                            label="Observaciones"
-                            value={pedido.datosRetira.observaciones}
-                          />
-                        )}
                       </>
+                    )}
+                    {pedido.despacho.observaciones && (
+                      <InfoItem
+                        label="Observaciones"
+                        value={pedido.despacho.observaciones}
+                      />
                     )}
                   </div>
 

@@ -7,7 +7,7 @@ import type {
   PuntoEntrega,
   Sede,
 } from '@/lib/types'
-import { datosEntregaVacios, datosRetiraVacios } from '@/lib/types'
+import { contactoEntregaVacio, contactoRetiraVacio } from '@/lib/types'
 import { generarNumeroPedido, hoyInicio } from '@/lib/order-utils'
 import { clienteActualMock } from '@/lib/mock-data'
 import { toFechaISO } from '@/lib/format'
@@ -401,35 +401,35 @@ export function procesarFilas(
       moneda: 'COP',
       tipoProducto: base.producto.tipo,
       metodoDespacho: base.metodo,
-      datosEntrega:
+      despacho: {
+        sedeId: base.sede.id,
+        puntoEntregaId: base.punto.id,
+        ordenCompra: base.ordenCompra,
+        necesitaEstiba: base.estiba,
+        // "¿Necesita descarga?" del Excel se sigue ignorando para Retira.
+        necesitaDescarga: base.metodo === 'entregar' ? base.descarga : false,
+        observaciones: base.observaciones,
+      },
+      // "Nombre destinatario / Conductor" mapea al contacto del método activo.
+      contactoEntrega:
         base.metodo === 'entregar'
           ? {
-              sedeDespachoId: base.sede.id,
-              puntoEntregaId: base.punto.id,
-              ordenCompra: base.ordenCompra,
               nombreRecibe: base.nombreContacto,
               celular: base.celular,
               correo: base.correo,
-              necesitaEstiba: base.estiba,
-              necesitaDescarga: base.descarga,
-              observaciones: base.observaciones,
             }
-          : datosEntregaVacios(),
-      datosRetira:
+          : contactoEntregaVacio(),
+      contactoRetira:
         base.metodo === 'retira'
           ? {
-              sedeDespachoId: base.sede.id,
-              puntoEntregaId: base.punto.id,
-              ordenCompra: base.ordenCompra,
               nombreConductor: base.nombreContacto,
               cedula: base.cedula,
               placa: base.placa,
               celular: base.celular,
-              necesitaEstiba: base.estiba,
-              observaciones: base.observaciones,
             }
-          : datosRetiraVacios(),
+          : contactoRetiraVacio(),
       items,
+      sedeFacturaId: null,
     }
     const filasNums = rows.map((r) => r.filaNum).sort((a, b) => a - b)
     const origen = key.startsWith('g:')

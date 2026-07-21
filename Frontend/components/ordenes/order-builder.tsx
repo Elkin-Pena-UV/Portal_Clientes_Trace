@@ -160,7 +160,7 @@ export function OrderBuilder() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-0 pb-24">
+    <div className="mx-auto w-full max-w-6xl px-4 py-0">
       {/* Content centered with max-w-3xl */}
       <div className="mx-auto max-w-3xl">
         {/* Stepper */}
@@ -200,7 +200,7 @@ export function OrderBuilder() {
       </div>
 
       {/* Resumen sticky — Responsive */}
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white backdrop-blur supports-[backdrop-filter]:bg-white">
+      <div className="sticky bottom-0 z-30 -mx-4 mt-6 border-t border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
         {serviciosAdicionales.length > 0 && (
           <div className="border-b border-[#ff6600]/20 bg-[#ff6600]/10">
             <p className="mx-auto flex w-full max-w-6xl items-center gap-1.5 px-4 py-1.5 text-xs font-medium text-[#ff6600]">

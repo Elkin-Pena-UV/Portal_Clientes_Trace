@@ -1,10 +1,18 @@
 'use client'
 
 import * as React from 'react'
-import type { Pedido, Producto, PuntoEntrega, Rol, Sede } from '@/lib/types'
+import type {
+  Cliente,
+  Pedido,
+  Producto,
+  PuntoEntrega,
+  Rol,
+  Sede,
+} from '@/lib/types'
 import {
   asesorServicioMock,
   clienteActualMock,
+  clientesMock,
   pedidosMock,
   productosMock,
   puntosEntregaMock,
@@ -20,6 +28,16 @@ interface PortalContextValue {
   productos: Producto[]
   /** Store central de pedidos (todas las vistas leen de aquí). */
   pedidos: Pedido[]
+  /** Catálogo de clientes (terceros) con sus condiciones comerciales. */
+  clientes: Cliente[]
+  getCliente: (id: string) => Cliente | undefined
+  /**
+   * Inserta un pedido nuevo al inicio del store y devuelve su id. Si
+   * `opts.solicitar`, lo deja en 'solicitado' con consecutivo real, fecha de
+   * solicitud y los eventos de bitácora correspondientes (entra a la cola de
+   * aprobación). Es el punto de creación que usa el flujo SAC ("Nuevo pedido").
+   */
+  crearPedido: (pedido: Pedido, opts?: { solicitar?: boolean }) => string
   /** Transición 'en_construccion' → 'solicitado'. Ignora otros estados. */
   solicitarPedido: (id: string) => void
   /** Transición 'solicitado' → 'aprobado'. Ignora otros estados. */
@@ -121,6 +139,7 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
   const [puntosEntrega, setPuntosEntrega] =
     React.useState<PuntoEntrega[]>(puntosEntregaMock)
   const [productos] = React.useState<Producto[]>(productosMock)
+  const [clientes] = React.useState<Cliente[]>(clientesMock)
   const [pedidos, setPedidos] = React.useState<Pedido[]>(pedidosMock)
   const borradorRef = React.useRef<Pedido[] | null>(null)
   // Espejo del borrador en construcción + banderas para el flujo "crear punto".
@@ -202,6 +221,45 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       )
     },
     [puntosEntrega, resolverProducto],
+  )
+
+  const crearPedido = React.useCallback(
+    (pedido: Pedido, opts?: { solicitar?: boolean }) => {
+      const solicitar = opts?.solicitar ?? false
+      let nuevo = pedido
+      if (solicitar) {
+        // Misma transición que solicitarPedido: consecutivo real, fecha de
+        // solicitud y evento 'documento_solicitado'. Se antepone un comentario
+        // que deja constancia de que el pedido nació desde la vista SAC.
+        const numero = siguienteConsecutivo()
+        const total = totalesPedido(pedido, resolverProducto).total
+        const punto = puntosEntrega.find(
+          (x) => x.id === pedido.despacho.puntoEntregaId,
+        )
+        nuevo = {
+          ...pedido,
+          estado: 'solicitado',
+          numero,
+          fechaSolicitud: new Date().toISOString(),
+          bitacora: [
+            ...pedido.bitacora,
+            nuevoEvento(
+              'comentario_documento',
+              usuarioActual(),
+              `Pedido creado por Servicio al Cliente en nombre de ${pedido.clienteNombre}. ${detalleDocumento(pedido, numero, total, punto)}`,
+            ),
+            nuevoEvento(
+              'documento_solicitado',
+              pedido.creadorEmail,
+              detalleDocumento(pedido, numero, total, punto),
+            ),
+          ],
+        }
+      }
+      setPedidos((prev) => [nuevo, ...prev])
+      return nuevo.id
+    },
+    [puntosEntrega, resolverProducto, usuarioActual],
   )
 
   const aprobarPedido = React.useCallback(
@@ -364,6 +422,11 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     [productos],
   )
 
+  const getCliente = React.useCallback(
+    (id: string) => clientes.find((c) => c.id === id),
+    [clientes],
+  )
+
   const value = React.useMemo(
     () => ({
       rol,
@@ -371,6 +434,9 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       sedes,
       productos,
       pedidos,
+      clientes,
+      getCliente,
+      crearPedido,
       solicitarPedido,
       aprobarPedido,
       rechazarPedido,
@@ -401,6 +467,9 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       sedes,
       productos,
       pedidos,
+      clientes,
+      getCliente,
+      crearPedido,
       solicitarPedido,
       aprobarPedido,
       rechazarPedido,

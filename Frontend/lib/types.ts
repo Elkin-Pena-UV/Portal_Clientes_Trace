@@ -217,6 +217,33 @@ export const ESTADO_CREDITO_LABEL: Record<EstadoCredito, string> = {
   sin_aprobar: 'Sin Aprobar',
 }
 
+/** Forma de pago del cliente. Condición comercial fija: no se edita al pedir. */
+export type FormaPago = 'Crédito' | 'Contado'
+
+/**
+ * Cliente (tercero) del portal. Fuente de verdad de las condiciones
+ * comerciales: forma de pago, plazos habilitados y estado de crédito. Al crear
+ * un pedido en su nombre, el Pedido guarda un snapshot denormalizado de estas
+ * condiciones (formaPago/plazoCodigo/estadoCredito), por lo que este modelo no
+ * altera la interfaz Pedido existente.
+ */
+export interface Cliente {
+  id: string
+  nit: string
+  nombre: string
+  /** Condición comercial fija del cliente: NO editable al crear el pedido. */
+  formaPago: FormaPago
+  /** Estado de crédito vigente del cliente (se copia al pedido). */
+  estadoCredito: EstadoCredito
+  /** Códigos de PLAZOS habilitados para el cliente. Contado -> ['CC']. */
+  plazosDisponibles: string[]
+  /** Código de PLAZOS por defecto al crear un pedido para este cliente. */
+  plazoPredeterminado: string
+  email?: string
+  // TODO(negocio) D4: puntoEntregaIds?: string[]  // scoping de puntos por cliente
+  // TODO(negocio) D2: sedeFacturaId?: string       // sede de facturación fija
+}
+
 export interface Pedido {
   id: string
   /** Número visible ("Cod"): con prefijo T_ mientras es borrador, consecutivo limpio al solicitar. */

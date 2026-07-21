@@ -4,11 +4,12 @@ import * as React from 'react'
 import Link from 'next/link'
 import { Columns3, Eye, Pencil } from 'lucide-react'
 import type { EstadoPedido, Pedido, PuntoEntrega } from '@/lib/types'
-import { ESTADO_CREDITO_LABEL, ESTADO_LABEL } from '@/lib/types'
+import { ESTADO_LABEL } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
 import { plazoLabel, totalUnidades, totalesPedido } from '@/lib/order-utils'
 import { formatCOP, formatFecha } from '@/lib/format'
 import { EstadoBadge } from '@/components/pedidos/estado-badge'
+import { EstadoCreditoBadge } from '@/components/pedidos/estado-credito-badge'
 import { DatePicker } from '@/components/ordenes/date-picker'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -595,28 +596,6 @@ function AccionLink({
       )}
       {esBorrador ? 'Editar' : 'Ver'}
     </Link>
-  )
-}
-
-/**
- * Badge sutil del estado de crédito: deliberadamente más tenue que
- * EstadoBadge (el estado del pedido es el protagonista de la fila).
- */
-function EstadoCreditoBadge({
-  estadoCredito,
-}: {
-  estadoCredito: Pedido['estadoCredito']
-}) {
-  const clase =
-    estadoCredito === 'aprobado'
-      ? 'bg-green-50 text-green-600'
-      : 'bg-gray-100 text-gray-500'
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${clase}`}
-    >
-      {ESTADO_CREDITO_LABEL[estadoCredito]}
-    </span>
   )
 }
 

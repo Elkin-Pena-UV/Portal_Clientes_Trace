@@ -1,4 +1,4 @@
-import type { Pedido, Producto, PuntoEntrega, Sede } from './types'
+import type { Cliente, Pedido, Producto, PuntoEntrega, Sede } from './types'
 import {
   BODEGA_DEFAULT,
   MOTIVO_VENTA_DEFAULT,
@@ -16,6 +16,46 @@ export const clienteActualMock = {
   /** Plazo de pago del maestro del cliente: lo heredan sus pedidos nuevos. */
   plazoCodigo: '30D',
 }
+
+/**
+ * Catálogo de clientes (terceros). Coherente con los clientes referidos por
+ * `pedidosMock`: c1 (Constructora Restrepo, Crédito/aprobado), c2 (Ferretería
+ * El Cóndor, Contado), c3 (Obras Civiles del Valle, Crédito/sin aprobar). Los
+ * plazos usan los códigos del catálogo PLAZOS. `clienteActualMock` (el usuario
+ * de la sesión del portal cliente) NO depende de esta lista y se mantiene igual.
+ */
+export const clientesMock: Cliente[] = [
+  {
+    id: 'c1',
+    nit: '830.111.222-3',
+    nombre: 'Constructora Restrepo',
+    formaPago: 'Crédito',
+    estadoCredito: 'aprobado',
+    plazosDisponibles: ['30D', '60D', '90D'],
+    plazoPredeterminado: '30D',
+    email: 'mrestrepo@restrepo.co',
+  },
+  {
+    id: 'c2',
+    nit: '901.333.444-5',
+    nombre: 'Ferretería El Cóndor',
+    formaPago: 'Contado',
+    estadoCredito: 'sin_aprobar',
+    plazosDisponibles: ['CC'],
+    plazoPredeterminado: 'CC',
+    email: 'compras@elcondor.com',
+  },
+  {
+    id: 'c3',
+    nit: '860.555.666-7',
+    nombre: 'Obras Civiles del Valle',
+    formaPago: 'Crédito',
+    estadoCredito: 'sin_aprobar',
+    plazosDisponibles: ['30D', '45D'],
+    plazoPredeterminado: '30D',
+    email: 'alozano@ocvalle.com',
+  },
+]
 
 export const productosMock: Producto[] = [
   // --- Cemento en saco ---

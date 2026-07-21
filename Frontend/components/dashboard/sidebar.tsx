@@ -119,6 +119,13 @@ const sidebarItems: SidebarItem[] = [
     icon: <ClipboardList className="size-5" />,
     roles: ['servicio'],
   },
+  {
+    group: 'GESTIÓN',
+    label: 'Nuevo pedido',
+    href: '/servicio/pedidos/nuevo',
+    icon: <Plus className="size-5" />,
+    roles: ['servicio'],
+  },
 ]
 
 /** Agrupa los items visibles para un rol, preservando el orden de los grupos. */

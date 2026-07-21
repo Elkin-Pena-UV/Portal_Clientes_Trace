@@ -1,5 +1,6 @@
 import type {
   AccionBitacora,
+  Cliente,
   EventoBitacora,
   Pedido,
   Producto,
@@ -116,6 +117,45 @@ export function nuevoPedido(): Pedido {
     contactoEntrega: contactoEntregaVacio(),
     contactoRetira: contactoRetiraVacio(),
     items: [],
+    sedeFacturaId: null,
+    bodegaCodigo: BODEGA_DEFAULT,
+    motivoVenta: MOTIVO_VENTA_DEFAULT,
+    bitacora: [],
+  }
+}
+
+/**
+ * Crea un pedido en borrador para un cliente concreto (flujo SAC: crear un
+ * pedido en nombre del cliente). A diferencia de `nuevoPedido`, no depende de
+ * `clienteActualMock`: las condiciones comerciales (forma de pago, plazo y
+ * estado de crédito) se copian del `Cliente` seleccionado como snapshot
+ * denormalizado. `creadorEmail` es el correo del usuario SAC de la sesión.
+ */
+export function nuevoPedidoParaCliente(
+  cliente: Cliente,
+  creadorEmail: string,
+): Pedido {
+  return {
+    id: Math.random().toString(36).slice(2, 10),
+    numero: generarNumeroPedido(), // T_xxxxxx hasta solicitar
+    estado: 'en_construccion',
+    pvc: null,
+    estadoCredito: cliente.estadoCredito, // D5: se copia del cliente
+    formaPago: cliente.formaPago, // read-only en la UI
+    plazoCodigo: cliente.plazoPredeterminado,
+    clienteId: cliente.id,
+    clienteNombre: cliente.nombre,
+    fechaCreacion: new Date().toISOString(),
+    fechaSolicitud: null,
+    creadorEmail, // correo del usuario SAC (mock)
+    moneda: 'COP',
+    tipoProducto: null,
+    metodoDespacho: null,
+    despacho: despachoVacio(),
+    contactoEntrega: contactoEntregaVacio(),
+    contactoRetira: contactoRetiraVacio(),
+    items: [],
+    // La sede de facturación la asigna SAC desde el detalle (D2: TODO negocio).
     sedeFacturaId: null,
     bodegaCodigo: BODEGA_DEFAULT,
     motivoVenta: MOTIVO_VENTA_DEFAULT,

@@ -14,7 +14,7 @@ export default function CrearOrdenPage() {
     <DashboardLayout
       title="Crear orden"
       subtitle="Crea pedidos manualmente o cárgalos masivamente desde Excel"
-      hasFixedBottomBar={true}
+      hasFixedBottomBar={false}
       hideFooter={false}
     >
       <div className="max-w-6xl mx-auto w-full">

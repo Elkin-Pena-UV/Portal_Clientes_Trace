@@ -83,12 +83,6 @@ export default function SedesPage() {
       subtitle="Sucursales y plantas de despacho de la compañía"
     >
       <div className="mx-auto w-full max-w-6xl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-end">
-          <Button onClick={openCreate}>
-            <Plus data-icon="inline-start" />
-            Nueva sede
-          </Button>
-        </div>
 
         <Card className="mt-6">
           <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -178,7 +178,7 @@ export function PedidosReview({
                           if (!prod) return null
                           const linea = calcularLinea(prod, item.cantidad)
                           return (
-                            <TableRow key={item.productoId}>
+                            <TableRow key={item.id}>
                               <TableCell>
                                 <span className="flex items-center gap-2">
                                   <span className="relative size-9 shrink-0 overflow-hidden rounded bg-muted">

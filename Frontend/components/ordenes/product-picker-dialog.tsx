@@ -10,6 +10,7 @@ import type {
   TipoProducto,
 } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
+import { nuevoItemId } from '@/lib/order-utils'
 import { formatCOP } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -65,7 +66,11 @@ export function ProductPickerDialog({
 }: ProductPickerDialogProps) {
   const { productos } = usePortal()
   const [query, setQuery] = React.useState('')
-  const [draft, setDraft] = React.useState<Record<string, number>>({})
+  /**
+   * Borrador como lista de LÍNEAS (no Record por producto): así se conservan
+   * id y fecha de las líneas existentes y no se colapsan productos repetidos.
+   */
+  const [draft, setDraft] = React.useState<ItemPedido[]>([])
   const [activeTab, setActiveTab] = React.useState<string>(
     SECCIONES_SACO[0].categoria,
   )
@@ -74,9 +79,7 @@ export function ProductPickerDialog({
     if (open) {
       setQuery('')
       setActiveTab(SECCIONES_SACO[0].categoria)
-      const initial: Record<string, number> = {}
-      for (const item of currentItems) initial[item.productoId] = item.cantidad
-      setDraft(initial)
+      setDraft(currentItems.map((i) => ({ ...i })))
     }
   }, [open, currentItems])
 
@@ -109,30 +112,35 @@ export function ProductPickerDialog({
     return map
   }, [disponibles])
 
-  function setQty(id: string, qty: number) {
+  /** Cantidad mostrada en la tarjeta: la de la primera línea del producto. */
+  function qtyDe(productoId: string): number {
+    return draft.find((i) => i.productoId === productoId)?.cantidad ?? 0
+  }
+
+  /**
+   * El stepper opera sobre la primera línea del producto; las líneas
+   * duplicadas adicionales (p. ej. creadas desde Servicio) se conservan.
+   */
+  function setQty(productoId: string, qty: number) {
     setDraft((prev) => {
-      const next = { ...prev }
-      if (qty <= 0) delete next[id]
-      else next[id] = qty
-      return next
+      const idx = prev.findIndex((i) => i.productoId === productoId)
+      if (idx === -1) {
+        if (qty <= 0) return prev
+        return [
+          ...prev,
+          { id: nuevoItemId(), productoId, cantidad: qty, fechaEntrega: null },
+        ]
+      }
+      if (qty <= 0) return prev.filter((_, i) => i !== idx)
+      return prev.map((it, i) => (i === idx ? { ...it, cantidad: qty } : it))
     })
   }
 
-  const totalUnidades = Object.values(draft).reduce((a, b) => a + b, 0)
-  const totalProductos = Object.keys(draft).length
+  const totalUnidades = draft.reduce((a, i) => a + i.cantidad, 0)
+  const totalProductos = draft.length
 
   function handleConfirm() {
-    const prevFechas = new Map(
-      currentItems.map((i) => [i.productoId, i.fechaEntrega]),
-    )
-    const items: ItemPedido[] = Object.entries(draft).map(
-      ([productoId, cantidad]) => ({
-        productoId,
-        cantidad,
-        fechaEntrega: prevFechas.get(productoId) ?? null,
-      }),
-    )
-    onConfirm(items)
+    onConfirm(draft)
     onOpenChange(false)
   }
 
@@ -222,7 +230,7 @@ export function ProductPickerDialog({
                       <ProductoCard
                         key={producto.id}
                         producto={producto}
-                        qty={draft[producto.id] ?? 0}
+                        qty={qtyDe(producto.id)}
                         onSetQty={setQty}
                       />
                     ))}
@@ -241,7 +249,7 @@ export function ProductPickerDialog({
                   <ProductoCard
                     key={producto.id}
                     producto={producto}
-                    qty={draft[producto.id] ?? 0}
+                    qty={qtyDe(producto.id)}
                     onSetQty={setQty}
                     categoriaLabel={
                       searching && tipoProducto === 'saco'

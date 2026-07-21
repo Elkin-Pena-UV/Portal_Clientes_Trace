@@ -1,9 +1,21 @@
-import type { Pedido, Producto } from './types'
+import type {
+  AccionBitacora,
+  EventoBitacora,
+  Pedido,
+  Producto,
+  PuntoEntrega,
+  Sede,
+} from './types'
 import {
+  BODEGA_DEFAULT,
+  MOTIVO_VENTA_DEFAULT,
+  MOTIVO_VENTA_LABEL,
+  PLAZOS,
   contactoEntregaVacio,
   contactoRetiraVacio,
   despachoVacio,
 } from './types'
+import { formatFecha } from './format'
 import { clienteActualMock } from './mock-data'
 
 export interface Totales {
@@ -53,6 +65,14 @@ export function totalesGlobales(pedidos: Pedido[], resolve: ProductoResolver): T
   )
 }
 
+/**
+ * Id único para una línea de pedido. Cada línea tiene identidad propia:
+ * el mismo producto puede repetirse en varias líneas (despachos distintos).
+ */
+export function nuevoItemId(): string {
+  return Math.random().toString(36).slice(2, 10)
+}
+
 /** Fecha de hoy a medianoche local (para validar fechas no anteriores a hoy). */
 export function hoyInicio(): Date {
   const d = new Date()
@@ -82,7 +102,8 @@ export function nuevoPedido(): Pedido {
     pvc: null,
     estadoCredito: 'sin_aprobar',
     formaPago: 'Crédito',
-    plazoCredito: 'Crédito 30 días',
+    // El plazo viene del maestro del cliente; '30D' si no tiene definido.
+    plazoCodigo: clienteActualMock.plazoCodigo || '30D',
     clienteId: clienteActualMock.clienteId,
     clienteNombre: clienteActualMock.clienteNombre,
     fechaCreacion: new Date().toISOString(),
@@ -96,6 +117,9 @@ export function nuevoPedido(): Pedido {
     contactoRetira: contactoRetiraVacio(),
     items: [],
     sedeFacturaId: null,
+    bodegaCodigo: BODEGA_DEFAULT,
+    motivoVenta: MOTIVO_VENTA_DEFAULT,
+    bitacora: [],
   }
 }
 
@@ -109,7 +133,7 @@ export function clonarPedido(prev: Pedido): Pedido {
     // Condiciones comerciales del cliente: se heredan del pedido anterior.
     estadoCredito: prev.estadoCredito,
     formaPago: prev.formaPago,
-    plazoCredito: prev.plazoCredito,
+    plazoCodigo: prev.plazoCodigo,
     clienteId: prev.clienteId,
     clienteNombre: prev.clienteNombre,
     fechaCreacion: new Date().toISOString(),
@@ -124,7 +148,157 @@ export function clonarPedido(prev: Pedido): Pedido {
     items: [],
     // La sede factura la asigna SAC por pedido: no se hereda del anterior.
     sedeFacturaId: null,
+    // Bodega y motivo los ajusta logística por pedido: arrancan en su default.
+    bodegaCodigo: BODEGA_DEFAULT,
+    motivoVenta: MOTIVO_VENTA_DEFAULT,
+    // La bitácora es propia de cada pedido: el clon arranca la suya vacía.
+    bitacora: [],
   }
+}
+
+/**
+ * Label de un plazo con el formato del sistema actual: "30D : CREDITO 30 DIAS".
+ * Si el código no existe en el catálogo, devuelve el código crudo.
+ */
+export function plazoLabel(codigo: string): string {
+  const plazo = PLAZOS.find((p) => p.codigo === codigo)
+  return plazo ? `${plazo.codigo} : ${plazo.nombre}` : codigo
+}
+
+/** Crea un evento de bitácora fechado en este instante. */
+export function nuevoEvento(
+  accion: AccionBitacora,
+  usuario: string,
+  detalle: string,
+  adjuntos: string[] = [],
+): EventoBitacora {
+  return {
+    id: Math.random().toString(36).slice(2, 10),
+    fecha: new Date().toISOString(),
+    accion,
+    usuario,
+    detalle,
+    adjuntos,
+  }
+}
+
+/** Resolvedores de catálogos para armar el resumen de cambios legible. */
+export interface ResolversResumen {
+  producto: ProductoResolver
+  sede?: (id: string) => Sede | undefined
+  punto?: (id: string) => PuntoEntrega | undefined
+}
+
+/**
+ * Resumen legible de QUÉ cambió entre un pedido y su patch, para el evento
+ * 'documento_modificado' de la bitácora. Ej:
+ * "Plazo: 30D → 60D | Bodega: EMP01 → SCART | Cantidad COD-0042: 45 → 60".
+ * Cadena vacía si no hay diferencias (no se debe registrar evento).
+ */
+export function resumenCambios(
+  prev: Pedido,
+  patch: Partial<Pedido>,
+  resolvers: ResolversResumen,
+): string {
+  const cambios: string[] = []
+  const nombreSede = (id: string | null) =>
+    id ? (resolvers.sede?.(id)?.nombre ?? id) : 'Sin asignar'
+  const nombrePunto = (id: string) =>
+    id ? (resolvers.punto?.(id)?.nombre ?? id) : '—'
+  const codigoProducto = (id: string) => resolvers.producto(id)?.codigo ?? id
+  const metodo = (m: Pedido['metodoDespacho']) =>
+    m === 'entregar' ? 'Entregar' : m === 'retira' ? 'Retira' : '—'
+  const siNo = (v: boolean) => (v ? 'Sí' : 'No')
+  const fecha = (f: string | null) => (f ? formatFecha(f) : 'Sin fecha')
+
+  if (
+    patch.metodoDespacho !== undefined &&
+    patch.metodoDespacho !== prev.metodoDespacho
+  ) {
+    cambios.push(
+      `Método de despacho: ${metodo(prev.metodoDespacho)} → ${metodo(patch.metodoDespacho)}`,
+    )
+  }
+  if (patch.despacho) {
+    const a = prev.despacho
+    const b = patch.despacho
+    if (b.sedeId !== a.sedeId)
+      cambios.push(
+        `Sede: ${nombreSede(a.sedeId || null)} → ${nombreSede(b.sedeId || null)}`,
+      )
+    if (b.puntoEntregaId !== a.puntoEntregaId)
+      cambios.push(
+        `Punto de entrega: ${nombrePunto(a.puntoEntregaId)} → ${nombrePunto(b.puntoEntregaId)}`,
+      )
+    if (b.ordenCompra !== a.ordenCompra)
+      cambios.push(`Orden de compra: ${a.ordenCompra || '—'} → ${b.ordenCompra || '—'}`)
+    if (b.necesitaEstiba !== a.necesitaEstiba)
+      cambios.push(`Estiba: ${siNo(a.necesitaEstiba)} → ${siNo(b.necesitaEstiba)}`)
+    if (b.necesitaDescarga !== a.necesitaDescarga)
+      cambios.push(`Descarga: ${siNo(a.necesitaDescarga)} → ${siNo(b.necesitaDescarga)}`)
+    if (b.observaciones !== a.observaciones)
+      cambios.push('Observaciones: actualizadas')
+  }
+  if (
+    patch.contactoEntrega &&
+    JSON.stringify(patch.contactoEntrega) !== JSON.stringify(prev.contactoEntrega)
+  ) {
+    cambios.push('Contacto de entrega: actualizado')
+  }
+  if (
+    patch.contactoRetira &&
+    JSON.stringify(patch.contactoRetira) !== JSON.stringify(prev.contactoRetira)
+  ) {
+    cambios.push('Contacto de retiro: actualizado')
+  }
+  if (
+    patch.sedeFacturaId !== undefined &&
+    patch.sedeFacturaId !== prev.sedeFacturaId
+  ) {
+    cambios.push(
+      `Sede factura: ${nombreSede(prev.sedeFacturaId)} → ${nombreSede(patch.sedeFacturaId)}`,
+    )
+  }
+  if (patch.bodegaCodigo && patch.bodegaCodigo !== prev.bodegaCodigo)
+    cambios.push(`Bodega: ${prev.bodegaCodigo} → ${patch.bodegaCodigo}`)
+  if (patch.motivoVenta && patch.motivoVenta !== prev.motivoVenta)
+    cambios.push(
+      `Motivo de venta: ${MOTIVO_VENTA_LABEL[prev.motivoVenta]} → ${MOTIVO_VENTA_LABEL[patch.motivoVenta]}`,
+    )
+  if (patch.plazoCodigo && patch.plazoCodigo !== prev.plazoCodigo)
+    cambios.push(`Plazo: ${prev.plazoCodigo} → ${patch.plazoCodigo}`)
+
+  if (patch.items) {
+    const antesPorId = new Map(prev.items.map((i) => [i.id, i]))
+    const idsNuevos = new Set(patch.items.map((i) => i.id))
+    const agregadas: string[] = []
+    for (const item of patch.items) {
+      const antes = antesPorId.get(item.id)
+      if (!antes) {
+        agregadas.push(codigoProducto(item.productoId))
+        continue
+      }
+      const codigo = codigoProducto(item.productoId)
+      if (item.cantidad !== antes.cantidad)
+        cambios.push(`Cantidad ${codigo}: ${antes.cantidad} → ${item.cantidad}`)
+      if (item.fechaEntrega !== antes.fechaEntrega)
+        cambios.push(
+          `Fecha ${codigo}: ${fecha(antes.fechaEntrega)} → ${fecha(item.fechaEntrega)}`,
+        )
+    }
+    const eliminadas = prev.items
+      .filter((i) => !idsNuevos.has(i.id))
+      .map((i) => codigoProducto(i.productoId))
+    const lineas = (n: number) => (n === 1 ? 'línea' : 'líneas')
+    const partes: string[] = []
+    if (agregadas.length)
+      partes.push(`+${agregadas.length} ${lineas(agregadas.length)} (${agregadas.join(', ')})`)
+    if (eliminadas.length)
+      partes.push(`-${eliminadas.length} ${lineas(eliminadas.length)} (${eliminadas.join(', ')})`)
+    if (partes.length) cambios.push(`Productos: ${partes.join(', ')}`)
+  }
+
+  return cambios.join(' | ')
 }
 
 export function totalUnidades(pedido: Pedido): number {

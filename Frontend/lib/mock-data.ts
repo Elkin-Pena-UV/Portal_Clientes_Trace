@@ -1,5 +1,7 @@
 import type { Pedido, Producto, PuntoEntrega, Sede } from './types'
 import {
+  BODEGA_DEFAULT,
+  MOTIVO_VENTA_DEFAULT,
   contactoEntregaVacio,
   contactoRetiraVacio,
   despachoVacio,
@@ -11,6 +13,8 @@ export const clienteActualMock = {
   clienteNombre: 'Constructora Restrepo',
   usuarioNombre: 'María Restrepo',
   email: 'mrestrepo@restrepo.co',
+  /** Plazo de pago del maestro del cliente: lo heredan sus pedidos nuevos. */
+  plazoCodigo: '30D',
 }
 
 export const productosMock: Producto[] = [
@@ -232,6 +236,12 @@ export const puntosEntregaMock: PuntoEntrega[] = [
   },
 ]
 
+/** Asesor de Servicio mock: firma las acciones de Gestión en la bitácora. */
+export const asesorServicioMock = {
+  nombre: 'Paola Cifuentes',
+  email: 'pcifuentes@sanmarcos.co',
+}
+
 /**
  * Pedidos semilla del store central: cubren los tres estados, varios clientes,
  * mezcla de estadoCredito, puntos de entrega y creadores (estilo pantalla real
@@ -245,7 +255,7 @@ export const pedidosMock: Pedido[] = [
     pvc: 'PVC-275190',
     estadoCredito: 'aprobado',
     formaPago: 'Crédito',
-    plazoCredito: 'Crédito 30 días',
+    plazoCodigo: '30D',
     clienteId: 'c1',
     clienteNombre: 'Constructora Restrepo',
     fechaCreacion: '2026-06-28T09:15:00.000Z',
@@ -269,10 +279,49 @@ export const pedidosMock: Pedido[] = [
     },
     contactoRetira: contactoRetiraVacio(),
     items: [
-      { productoId: 'p1', cantidad: 200, fechaEntrega: '2026-07-03' },
-      { productoId: 'p2', cantidad: 80, fechaEntrega: '2026-07-03' },
+      { id: 'it1', productoId: 'p1', cantidad: 200, fechaEntrega: '2026-07-03' },
+      { id: 'it2', productoId: 'p2', cantidad: 80, fechaEntrega: '2026-07-03' },
     ],
     sedeFacturaId: 'sd1',
+    bodegaCodigo: BODEGA_DEFAULT,
+    motivoVenta: MOTIVO_VENTA_DEFAULT,
+    bitacora: [
+      {
+        id: 'bt1',
+        fecha: '2026-06-28T09:18:00.000Z',
+        accion: 'comentario_documento',
+        usuario: 'mrestrepo@restrepo.co',
+        detalle:
+          'CODIGO: T_301502 TOTAL: 0.00 CONSTRUCTORA RESTREPO - OBRA TORRE CENTRAL - ING. MARCELA RIOS - 3104567890 --Nombre: MARCELA RIOS --Telefono: 3104567890 --Correo: mrios@restrepo.co',
+        adjuntos: [],
+      },
+      {
+        id: 'bt2',
+        fecha: '2026-06-28T10:02:00.000Z',
+        accion: 'documento_solicitado',
+        usuario: 'mrestrepo@restrepo.co',
+        detalle:
+          'CODIGO: 269488 TOTAL: 10486280.00 CONSTRUCTORA RESTREPO - OBRA TORRE CENTRAL - ING. MARCELA RIOS - 3104567890 --Nombre: MARCELA RIOS --Telefono: 3104567890 --Correo: mrios@restrepo.co',
+        adjuntos: ['orden-compra-OC-4410.pdf'],
+      },
+      {
+        id: 'bt3',
+        fecha: '2026-06-28T13:40:00.000Z',
+        accion: 'documento_aprobado',
+        usuario: 'Paola Cifuentes',
+        detalle: 'CODIGO: 269488 TOTAL: 10486280.00',
+        adjuntos: [],
+      },
+      {
+        id: 'bt4',
+        fecha: '2026-06-28T13:42:00.000Z',
+        accion: 'documento_mensaje',
+        usuario: 'Paola Cifuentes',
+        detalle:
+          'Se ha enviado mensaje al pedido PVC-275190 por el estado Aprobado con el siguiente contenido CSM: Hemos recibido tu solicitud y queda radicado con PVC-275190 Destino Bogotá - CONSTRUCTORA RESTREPO Cantidad 280 Bultos.',
+        adjuntos: [],
+      },
+    ],
   },
   {
     id: 'ped3',
@@ -281,7 +330,7 @@ export const pedidosMock: Pedido[] = [
     pvc: null,
     estadoCredito: 'aprobado',
     formaPago: 'Crédito',
-    plazoCredito: 'Crédito 60 días',
+    plazoCodigo: '60D',
     clienteId: 'c1',
     clienteNombre: 'Constructora Restrepo',
     fechaCreacion: '2026-07-08T11:05:00.000Z',
@@ -304,8 +353,31 @@ export const pedidosMock: Pedido[] = [
       correo: 'jvelez@restrepo.co',
     },
     contactoRetira: contactoRetiraVacio(),
-    items: [{ productoId: 'p10', cantidad: 34, fechaEntrega: '2026-07-18' }],
+    items: [{ id: 'it3', productoId: 'p10', cantidad: 34, fechaEntrega: '2026-07-18' }],
     sedeFacturaId: null,
+    // Granel de cemento ART: sale de la bodega SCART, no de la default.
+    bodegaCodigo: 'SCART',
+    motivoVenta: MOTIVO_VENTA_DEFAULT,
+    bitacora: [
+      {
+        id: 'bt5',
+        fecha: '2026-07-08T11:08:00.000Z',
+        accion: 'comentario_documento',
+        usuario: 'jvelez@restrepo.co',
+        detalle:
+          'CODIGO: T_301618 TOTAL: 0.00 CONSTRUCTORA RESTREPO - OBRA CONJUNTO LAS PALMAS - ING. JULIAN VELEZ - 3009876543 --Nombre: JULIAN VELEZ --Telefono: 3009876543 --Correo: jvelez@restrepo.co',
+        adjuntos: [],
+      },
+      {
+        id: 'bt6',
+        fecha: '2026-07-08T11:40:00.000Z',
+        accion: 'documento_solicitado',
+        usuario: 'jvelez@restrepo.co',
+        detalle:
+          'CODIGO: 269512 TOTAL: 28241080.00 CONSTRUCTORA RESTREPO - OBRA CONJUNTO LAS PALMAS - ING. JULIAN VELEZ - 3009876543 --Nombre: JULIAN VELEZ --Telefono: 3009876543 --Correo: jvelez@restrepo.co',
+        adjuntos: [],
+      },
+    ],
   },
   {
     id: 'ped4',
@@ -314,7 +386,7 @@ export const pedidosMock: Pedido[] = [
     pvc: null,
     estadoCredito: 'sin_aprobar',
     formaPago: 'Crédito',
-    plazoCredito: 'Crédito 30 días',
+    plazoCodigo: '30D',
     clienteId: 'c3',
     clienteNombre: 'Obras Civiles del Valle',
     fechaCreacion: '2026-07-10T16:20:00.000Z',
@@ -338,10 +410,32 @@ export const pedidosMock: Pedido[] = [
     },
     contactoRetira: contactoRetiraVacio(),
     items: [
-      { productoId: 'p8', cantidad: 45, fechaEntrega: '2026-07-20' },
-      { productoId: 'p9', cantidad: 30, fechaEntrega: '2026-07-20' },
+      { id: 'it4', productoId: 'p8', cantidad: 45, fechaEntrega: '2026-07-20' },
+      { id: 'it5', productoId: 'p9', cantidad: 30, fechaEntrega: '2026-07-20' },
     ],
     sedeFacturaId: null,
+    bodegaCodigo: BODEGA_DEFAULT,
+    motivoVenta: MOTIVO_VENTA_DEFAULT,
+    bitacora: [
+      {
+        id: 'bt7',
+        fecha: '2026-07-10T16:24:00.000Z',
+        accion: 'comentario_documento',
+        usuario: 'alozano@ocvalle.com',
+        detalle:
+          'CODIGO: T_301655 TOTAL: 0.00 OBRAS CIVILES DEL VALLE - PUNTO DE VENTA SUR - ANDREA LOZANO - 3157654321 --Nombre: ANDREA LOZANO --Telefono: 3157654321 --Correo: alozano@ocvalle.com',
+        adjuntos: [],
+      },
+      {
+        id: 'bt8',
+        fecha: '2026-07-10T17:05:00.000Z',
+        accion: 'documento_solicitado',
+        usuario: 'alozano@ocvalle.com',
+        detalle:
+          'CODIGO: 269531 TOTAL: 1945650.00 OBRAS CIVILES DEL VALLE - PUNTO DE VENTA SUR - ANDREA LOZANO - 3157654321 --Nombre: ANDREA LOZANO --Telefono: 3157654321 --Correo: alozano@ocvalle.com',
+        adjuntos: [],
+      },
+    ],
   },
   {
     // Reproduce la fila 269554 de la pantalla real: badge "Aprobado" con
@@ -352,7 +446,7 @@ export const pedidosMock: Pedido[] = [
     pvc: 'PVC-275251',
     estadoCredito: 'sin_aprobar',
     formaPago: 'Contado',
-    plazoCredito: 'Contado',
+    plazoCodigo: 'CC',
     clienteId: 'c2',
     clienteNombre: 'Ferretería El Cóndor',
     fechaCreacion: '2026-07-11T14:40:00.000Z',
@@ -376,8 +470,48 @@ export const pedidosMock: Pedido[] = [
       placa: 'XKD421',
       celular: '3159871234',
     },
-    items: [{ productoId: 'p7', cantidad: 60, fechaEntrega: '2026-07-06' }],
+    items: [{ id: 'it6', productoId: 'p7', cantidad: 60, fechaEntrega: '2026-07-06' }],
     sedeFacturaId: 'sd2',
+    // Saco despachado desde la bodega externa de Pereira.
+    bodegaCodigo: 'BEPER',
+    motivoVenta: MOTIVO_VENTA_DEFAULT,
+    bitacora: [
+      {
+        id: 'bt9',
+        fecha: '2026-07-11T14:43:00.000Z',
+        accion: 'comentario_documento',
+        usuario: 'compras@elcondor.com',
+        detalle:
+          'CODIGO: T_301688 TOTAL: 0.00 FERRETERIA EL CONDOR - PUNTO DE VENTA NORTE - CARLOS MENDEZ - 3201234567 --Nombre: PEDRO SALAZAR --Telefono: 3159871234',
+        adjuntos: [],
+      },
+      {
+        id: 'bt10',
+        fecha: '2026-07-11T15:12:00.000Z',
+        accion: 'documento_solicitado',
+        usuario: 'compras@elcondor.com',
+        detalle:
+          'CODIGO: 269554 TOTAL: 2777460.00 FERRETERIA EL CONDOR - PUNTO DE VENTA NORTE - CARLOS MENDEZ - 3201234567 --Nombre: PEDRO SALAZAR --Telefono: 3159871234',
+        adjuntos: ['cedula-conductor.pdf', 'tarjeta-propiedad-XKD421.pdf'],
+      },
+      {
+        id: 'bt11',
+        fecha: '2026-07-11T16:05:00.000Z',
+        accion: 'documento_aprobado',
+        usuario: 'Paola Cifuentes',
+        detalle: 'CODIGO: 269554 TOTAL: 2777460.00',
+        adjuntos: [],
+      },
+      {
+        id: 'bt12',
+        fecha: '2026-07-11T16:07:00.000Z',
+        accion: 'documento_mensaje',
+        usuario: 'Paola Cifuentes',
+        detalle:
+          'Se ha enviado mensaje al pedido PVC-275251 por el estado Aprobado con el siguiente contenido CSM: Hemos recibido tu solicitud y queda radicado con PVC-275251 Destino Bogotá - FERRETERIA EL CONDOR Cantidad 60 Bultos.',
+        adjuntos: [],
+      },
+    ],
   },
   {
     id: 'ped5',
@@ -386,7 +520,7 @@ export const pedidosMock: Pedido[] = [
     pvc: null,
     estadoCredito: 'aprobado',
     formaPago: 'Crédito',
-    plazoCredito: 'Crédito 30 días',
+    plazoCodigo: '30D',
     clienteId: 'c1',
     clienteNombre: 'Constructora Restrepo',
     fechaCreacion: '2026-07-13T08:30:00.000Z',
@@ -398,8 +532,21 @@ export const pedidosMock: Pedido[] = [
     despacho: despachoVacio(),
     contactoEntrega: contactoEntregaVacio(),
     contactoRetira: contactoRetiraVacio(),
-    items: [{ productoId: 'p3', cantidad: 25, fechaEntrega: null }],
+    items: [{ id: 'it7', productoId: 'p3', cantidad: 25, fechaEntrega: null }],
     sedeFacturaId: null,
+    bodegaCodigo: BODEGA_DEFAULT,
+    motivoVenta: MOTIVO_VENTA_DEFAULT,
+    bitacora: [
+      {
+        id: 'bt13',
+        fecha: '2026-07-13T08:32:00.000Z',
+        accion: 'comentario_documento',
+        usuario: 'mrestrepo@restrepo.co',
+        detalle:
+          'CODIGO: T_301740 TOTAL: 0.00 CONSTRUCTORA RESTREPO - PENDIENTE PUNTO DE ENTREGA --Nombre: --Telefono: --Correo:',
+        adjuntos: [],
+      },
+    ],
   },
   {
     id: 'ped6',
@@ -408,7 +555,7 @@ export const pedidosMock: Pedido[] = [
     pvc: null,
     estadoCredito: 'sin_aprobar',
     formaPago: 'Contado',
-    plazoCredito: 'Contado',
+    plazoCodigo: 'CC',
     clienteId: 'c2',
     clienteNombre: 'Ferretería El Cóndor',
     fechaCreacion: '2026-07-13T17:55:00.000Z',
@@ -422,5 +569,18 @@ export const pedidosMock: Pedido[] = [
     contactoRetira: contactoRetiraVacio(),
     items: [],
     sedeFacturaId: null,
+    bodegaCodigo: BODEGA_DEFAULT,
+    motivoVenta: MOTIVO_VENTA_DEFAULT,
+    bitacora: [
+      {
+        id: 'bt14',
+        fecha: '2026-07-13T17:57:00.000Z',
+        accion: 'comentario_documento',
+        usuario: 'compras@elcondor.com',
+        detalle:
+          'CODIGO: T_301722 TOTAL: 0.00 FERRETERIA EL CONDOR - PENDIENTE PUNTO DE ENTREGA --Nombre: --Telefono: --Correo:',
+        adjuntos: [],
+      },
+    ],
   },
 ]

@@ -15,8 +15,9 @@ import { cn } from '@/lib/utils'
 interface ProductLineProps {
   producto: Producto
   item: ItemPedido
-  onQtyChange: (productoId: string, cantidad: number) => void
-  onFechaChange: (productoId: string, fecha: string) => void
+  /** Los callbacks reciben el id de la LÍNEA (item.id), no el del producto. */
+  onQtyChange: (itemId: string, cantidad: number) => void
+  onFechaChange: (itemId: string, fecha: string) => void
   showErrors: boolean
 }
 
@@ -102,7 +103,7 @@ export function ProductLine({
               variant="outline"
               size="icon"
               className="size-7"
-              onClick={() => onQtyChange(producto.id, item.cantidad - 1)}
+              onClick={() => onQtyChange(item.id, item.cantidad - 1)}
               aria-label="Disminuir cantidad"
             >
               <span className="text-base leading-none">−</span>
@@ -114,7 +115,7 @@ export function ProductLine({
               value={item.cantidad}
               onChange={(ev) =>
                 onQtyChange(
-                  producto.id,
+                  item.id,
                   Math.max(0, Number(ev.target.value) || 0),
                 )
               }
@@ -126,7 +127,7 @@ export function ProductLine({
               variant="outline"
               size="icon"
               className="size-7"
-              onClick={() => onQtyChange(producto.id, item.cantidad + 1)}
+              onClick={() => onQtyChange(item.id, item.cantidad + 1)}
               aria-label="Aumentar cantidad"
             >
               <span className="text-base leading-none">+</span>
@@ -135,9 +136,9 @@ export function ProductLine({
 
           {/* Fecha de entrega (obligatoria) */}
           <DatePicker
-            id={`fecha-${producto.id}`}
+            id={`fecha-${item.id}`}
             value={item.fechaEntrega}
-            onChange={(iso) => onFechaChange(producto.id, iso)}
+            onChange={(iso) => onFechaChange(item.id, iso)}
             invalid={fechaFaltante}
             compact
             placeholder="Fecha de entrega"
@@ -190,7 +191,7 @@ export function ProductLine({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => onQtyChange(producto.id, 0)}
+            onClick={() => onQtyChange(item.id, 0)}
             className="self-start text-destructive hover:text-destructive"
           >
             <Trash2 data-icon="inline-start" />

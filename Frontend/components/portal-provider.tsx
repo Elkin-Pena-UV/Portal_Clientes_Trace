@@ -3,11 +3,14 @@
 import * as React from 'react'
 import type { Pedido, Producto, PuntoEntrega, Rol, Sede } from '@/lib/types'
 import {
+  asesorServicioMock,
+  clienteActualMock,
   pedidosMock,
   productosMock,
   puntosEntregaMock,
   sedesMock,
 } from '@/lib/mock-data'
+import { nuevoEvento, resumenCambios, totalesPedido } from '@/lib/order-utils'
 
 interface PortalContextValue {
   /** Rol activo de la sesión (mock, se cambia con el switcher de desarrollo). */
@@ -74,6 +77,40 @@ function siguienteConsecutivo(): string {
   return String(consecutivoMock)
 }
 
+/**
+ * Línea de detalle estilo sistema actual para los eventos de documento de la
+ * bitácora: "CODIGO: X TOTAL: Y CLIENTE - PUNTO - CONTACTO --Nombre: ...".
+ */
+function detalleDocumento(
+  p: Pedido,
+  numero: string,
+  total: number,
+  punto: PuntoEntrega | undefined,
+): string {
+  const contacto =
+    p.metodoDespacho === 'retira'
+      ? {
+          nombre: p.contactoRetira.nombreConductor,
+          telefono: p.contactoRetira.celular,
+          correo: '',
+        }
+      : {
+          nombre: p.contactoEntrega.nombreRecibe,
+          telefono: p.contactoEntrega.celular,
+          correo: p.contactoEntrega.correo,
+        }
+  const origen = [
+    p.clienteNombre.toUpperCase(),
+    punto?.nombre.toUpperCase(),
+    punto?.contactoNombre?.toUpperCase(),
+    punto?.contactoTelefono,
+  ]
+    .filter(Boolean)
+    .join(' - ')
+  const contactoTxt = `--Nombre: ${contacto.nombre.toUpperCase()} --Telefono: ${contacto.telefono}${contacto.correo ? ` --Correo: ${contacto.correo}` : ''}`
+  return `CODIGO: ${numero} TOTAL: ${total.toFixed(2)} ${origen} ${contactoTxt}`
+}
+
 export function PortalProvider({ children }: { children: React.ReactNode }) {
   const [rol, setRol] = React.useState<Rol>('cliente')
   const [sedes, setSedes] = React.useState<Sede[]>(sedesMock)
@@ -121,31 +158,71 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     return borradorPedidosRef.current
   }, [])
 
-  const solicitarPedido = React.useCallback((id: string) => {
-    setPedidos((prev) =>
-      prev.map((p): Pedido =>
-        p.id === id && p.estado === 'en_construccion'
-          ? {
-              ...p,
-              estado: 'solicitado',
-              // El borrador (T_xxxxxx) recibe su consecutivo definitivo.
-              numero: siguienteConsecutivo(),
-              fechaSolicitud: new Date().toISOString(),
-            }
-          : p,
-      ),
-    )
-  }, [])
+  /** Quien firma los eventos de bitácora según el rol activo de la sesión. */
+  const usuarioActual = React.useCallback(
+    () => (rol === 'cliente' ? clienteActualMock.email : asesorServicioMock.nombre),
+    [rol],
+  )
 
-  const aprobarPedido = React.useCallback((id: string) => {
-    setPedidos((prev) =>
-      prev.map((p): Pedido =>
-        p.id === id && p.estado === 'solicitado'
-          ? { ...p, estado: 'aprobado' }
-          : p,
-      ),
-    )
-  }, [])
+  const resolverProducto = React.useCallback(
+    (id: string) => productos.find((x) => x.id === id),
+    [productos],
+  )
+
+  const solicitarPedido = React.useCallback(
+    (id: string) => {
+      setPedidos((prev) =>
+        prev.map((p): Pedido => {
+          if (p.id !== id || p.estado !== 'en_construccion') return p
+          // El borrador (T_xxxxxx) recibe su consecutivo definitivo.
+          const numero = siguienteConsecutivo()
+          const total = totalesPedido(p, resolverProducto).total
+          const punto = puntosEntrega.find(
+            (x) => x.id === p.despacho.puntoEntregaId,
+          )
+          return {
+            ...p,
+            estado: 'solicitado',
+            numero,
+            fechaSolicitud: new Date().toISOString(),
+            bitacora: [
+              ...p.bitacora,
+              nuevoEvento(
+                'documento_solicitado',
+                p.creadorEmail,
+                detalleDocumento(p, numero, total, punto),
+              ),
+            ],
+          }
+        }),
+      )
+    },
+    [puntosEntrega, resolverProducto],
+  )
+
+  const aprobarPedido = React.useCallback(
+    (id: string) => {
+      setPedidos((prev) =>
+        prev.map((p): Pedido => {
+          if (p.id !== id || p.estado !== 'solicitado') return p
+          const total = totalesPedido(p, resolverProducto).total
+          return {
+            ...p,
+            estado: 'aprobado',
+            bitacora: [
+              ...p.bitacora,
+              nuevoEvento(
+                'documento_aprobado',
+                usuarioActual(),
+                `CODIGO: ${p.numero} TOTAL: ${total.toFixed(2)}`,
+              ),
+            ],
+          }
+        }),
+      )
+    },
+    [resolverProducto, usuarioActual],
+  )
 
   const rechazarPedido = React.useCallback((id: string) => {
     setPedidos((prev) =>
@@ -162,9 +239,30 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       // Las transiciones de estado solo ocurren vía solicitarPedido/aprobarPedido.
       const resto = { ...patch }
       delete resto.estado
-      setPedidos((prev) => prev.map((p) => (p.id === id ? { ...p, ...resto } : p)))
+      // La bitácora es append-only: nunca se reemplaza vía patch.
+      delete resto.bitacora
+      setPedidos((prev) =>
+        prev.map((p) => {
+          if (p.id !== id) return p
+          const resumen = resumenCambios(p, resto, {
+            producto: resolverProducto,
+            sede: (sid) => sedes.find((s) => s.id === sid),
+            punto: (pid) => puntosEntrega.find((x) => x.id === pid),
+          })
+          // Sin diferencias no se registra evento.
+          if (!resumen) return { ...p, ...resto }
+          return {
+            ...p,
+            ...resto,
+            bitacora: [
+              ...p.bitacora,
+              nuevoEvento('documento_modificado', usuarioActual(), resumen),
+            ],
+          }
+        }),
+      )
     },
-    [],
+    [resolverProducto, sedes, puntosEntrega, usuarioActual],
   )
 
   const getPedido = React.useCallback(

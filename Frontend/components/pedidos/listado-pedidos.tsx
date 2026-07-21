@@ -6,7 +6,7 @@ import { Columns3, Eye, Pencil } from 'lucide-react'
 import type { EstadoPedido, Pedido, PuntoEntrega } from '@/lib/types'
 import { ESTADO_CREDITO_LABEL, ESTADO_LABEL } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
-import { totalUnidades, totalesPedido } from '@/lib/order-utils'
+import { plazoLabel, totalUnidades, totalesPedido } from '@/lib/order-utils'
 import { formatCOP, formatFecha } from '@/lib/format'
 import { EstadoBadge } from '@/components/pedidos/estado-badge'
 import { DatePicker } from '@/components/ordenes/date-picker'
@@ -66,7 +66,7 @@ type ColumnaKey =
   | 'pvc'
   | 'estadoCredito'
   | 'formaPago'
-  | 'plazoCredito'
+  | 'plazoCodigo'
   | 'estado'
   | 'fechaSolicitud'
   | 'clienteNombre'
@@ -152,12 +152,12 @@ const COLUMNAS: ColumnaDef[] = [
     renderCell: ({ pedido }) => pedido.formaPago,
   },
   {
-    key: 'plazoCredito',
+    key: 'plazoCodigo',
     label: 'Plazo',
     hideable: true,
     defaultVisible: false,
-    cellTitle: ({ pedido }) => pedido.plazoCredito,
-    renderCell: ({ pedido }) => pedido.plazoCredito,
+    cellTitle: ({ pedido }) => plazoLabel(pedido.plazoCodigo),
+    renderCell: ({ pedido }) => plazoLabel(pedido.plazoCodigo),
   },
   {
     key: 'estado',
@@ -625,7 +625,7 @@ const SECUNDARIAS_MOVIL: ColumnaKey[] = [
   'pvc',
   'estadoCredito',
   'formaPago',
-  'plazoCredito',
+  'plazoCodigo',
   'clienteId',
   'puntoEntrega',
   'creadorEmail',
@@ -672,7 +672,7 @@ function PedidoCardMovil({
             </span>
           )}
           {visibles.formaPago && <span>{pedido.formaPago}</span>}
-          {visibles.plazoCredito && <span>{pedido.plazoCredito}</span>}
+          {visibles.plazoCodigo && <span>{plazoLabel(pedido.plazoCodigo)}</span>}
           {visibles.clienteId && <span>Cod cliente: {pedido.clienteId}</span>}
           {visibles.puntoEntrega && (
             <span className="col-span-2 truncate">

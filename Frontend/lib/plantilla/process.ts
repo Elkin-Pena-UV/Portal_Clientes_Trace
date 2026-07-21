@@ -7,8 +7,13 @@ import type {
   PuntoEntrega,
   Sede,
 } from '@/lib/types'
-import { contactoEntregaVacio, contactoRetiraVacio } from '@/lib/types'
-import { generarNumeroPedido, hoyInicio } from '@/lib/order-utils'
+import {
+  BODEGA_DEFAULT,
+  MOTIVO_VENTA_DEFAULT,
+  contactoEntregaVacio,
+  contactoRetiraVacio,
+} from '@/lib/types'
+import { generarNumeroPedido, hoyInicio, nuevoItemId } from '@/lib/order-utils'
 import { clienteActualMock } from '@/lib/mock-data'
 import { toFechaISO } from '@/lib/format'
 import {
@@ -380,7 +385,10 @@ export function procesarFilas(
   const pedidos: PedidoImportado[] = []
   grupos.forEach((rows, key) => {
     const base = rows[0]
+    // Cada fila del Excel es una LÍNEA propia: dos filas con el mismo código
+    // de producto producen dos líneas independientes, no una sumada.
     const items: ItemPedido[] = rows.map((r) => ({
+      id: nuevoItemId(),
       productoId: r.producto.id,
       cantidad: r.cantidad,
       fechaEntrega: r.fechaISO,
@@ -392,7 +400,8 @@ export function procesarFilas(
       pvc: null,
       estadoCredito: 'sin_aprobar',
       formaPago: 'Crédito',
-      plazoCredito: 'Crédito 30 días',
+      // El plazo viene del maestro del cliente; '30D' si no tiene definido.
+      plazoCodigo: clienteActualMock.plazoCodigo || '30D',
       clienteId: clienteActualMock.clienteId,
       clienteNombre: clienteActualMock.clienteNombre,
       fechaCreacion: new Date().toISOString(),
@@ -430,6 +439,11 @@ export function procesarFilas(
           : contactoRetiraVacio(),
       items,
       sedeFacturaId: null,
+      // La plantilla no trae estas columnas: entran con el default y
+      // logística las ajusta después desde el detalle del pedido.
+      bodegaCodigo: BODEGA_DEFAULT,
+      motivoVenta: MOTIVO_VENTA_DEFAULT,
+      bitacora: [],
     }
     const filasNums = rows.map((r) => r.filaNum).sort((a, b) => a - b)
     const origen = key.startsWith('g:')

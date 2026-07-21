@@ -172,23 +172,19 @@ export function PedidoCard({
     onChange({ ...pedido, items })
   }
 
-  function updateItemQty(productoId: string, cantidad: number) {
+  function updateItemQty(itemId: string, cantidad: number) {
     if (cantidad <= 0) {
-      setItems(pedido.items.filter((i) => i.productoId !== productoId))
+      setItems(pedido.items.filter((i) => i.id !== itemId))
     } else {
       setItems(
-        pedido.items.map((i) =>
-          i.productoId === productoId ? { ...i, cantidad } : i,
-        ),
+        pedido.items.map((i) => (i.id === itemId ? { ...i, cantidad } : i)),
       )
     }
   }
 
-  function updateItemFecha(productoId: string, fechaEntrega: string) {
+  function updateItemFecha(itemId: string, fechaEntrega: string) {
     setItems(
-      pedido.items.map((i) =>
-        i.productoId === productoId ? { ...i, fechaEntrega } : i,
-      ),
+      pedido.items.map((i) => (i.id === itemId ? { ...i, fechaEntrega } : i)),
     )
   }
 
@@ -684,7 +680,7 @@ export function PedidoCard({
                   if (!producto) return null
                   return (
                     <ProductLine
-                      key={item.productoId}
+                      key={item.id}
                       producto={producto}
                       item={item}
                       onQtyChange={updateItemQty}

@@ -36,6 +36,7 @@ const ACCION_BADGE_CLASS: Partial<Record<AccionBitacora, string>> = {
   documento_aprobado: 'bg-green-100 text-green-700 hover:bg-green-100',
   documento_solicitado: 'bg-blue-100 text-blue-700 hover:bg-blue-100',
   documento_modificado: 'bg-amber-100 text-amber-700 hover:bg-amber-100',
+  documento_rechazado: 'bg-red-100 text-red-700 hover:bg-red-100',
 }
 
 function AccionBadge({ accion }: { accion: AccionBitacora }) {

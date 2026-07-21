@@ -24,8 +24,12 @@ interface PortalContextValue {
   solicitarPedido: (id: string) => void
   /** Transición 'solicitado' → 'aprobado'. Ignora otros estados. */
   aprobarPedido: (id: string) => void
-  /** Transición 'solicitado' → 'rechazado'. Ignora otros estados. */
-  rechazarPedido: (id: string) => void
+  /** Transición 'solicitado' → 'rechazado', con motivo para la bitácora. Ignora otros estados. */
+  rechazarPedido: (id: string, motivo: string) => void
+  /** Elimina el pedido del store de forma permanente (junto con su bitácora). */
+  eliminarPedido: (id: string) => void
+  /** Registra un evento 'documento_mensaje' en la bitácora (envío de correo, etc.). */
+  registrarMensajePedido: (id: string, detalle: string) => void
   /** Actualiza campos de un pedido. El estado solo cambia vía las transiciones. */
   actualizarPedido: (id: string, patch: Partial<Pedido>) => void
   getPedido: (id: string) => Pedido | undefined
@@ -224,15 +228,55 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
     [resolverProducto, usuarioActual],
   )
 
-  const rechazarPedido = React.useCallback((id: string) => {
-    setPedidos((prev) =>
-      prev.map((p): Pedido =>
-        p.id === id && p.estado === 'solicitado'
-          ? { ...p, estado: 'rechazado' }
-          : p,
-      ),
-    )
+  const rechazarPedido = React.useCallback(
+    (id: string, motivo: string) => {
+      setPedidos((prev) =>
+        prev.map((p): Pedido =>
+          p.id === id && p.estado === 'solicitado'
+            ? {
+                ...p,
+                estado: 'rechazado',
+                bitacora: [
+                  ...p.bitacora,
+                  nuevoEvento(
+                    'documento_rechazado',
+                    usuarioActual(),
+                    `CODIGO: ${p.numero} RECHAZADO. Motivo: ${motivo}`,
+                  ),
+                ],
+              }
+            : p,
+        ),
+      )
+    },
+    [usuarioActual],
+  )
+
+  const eliminarPedido = React.useCallback((id: string) => {
+    // Acción irreversible: el pedido y su bitácora desaparecen del store. No
+    // se deja rastro porque la bitácora vive dentro del propio pedido (no hay
+    // log global en el prototipo).
+    setPedidos((prev) => prev.filter((p) => p.id !== id))
   }, [])
+
+  const registrarMensajePedido = React.useCallback(
+    (id: string, detalle: string) => {
+      setPedidos((prev) =>
+        prev.map((p): Pedido =>
+          p.id === id
+            ? {
+                ...p,
+                bitacora: [
+                  ...p.bitacora,
+                  nuevoEvento('documento_mensaje', usuarioActual(), detalle),
+                ],
+              }
+            : p,
+        ),
+      )
+    },
+    [usuarioActual],
+  )
 
   const actualizarPedido = React.useCallback(
     (id: string, patch: Partial<Pedido>) => {
@@ -330,6 +374,8 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       solicitarPedido,
       aprobarPedido,
       rechazarPedido,
+      eliminarPedido,
+      registrarMensajePedido,
       actualizarPedido,
       getPedido,
       addSede,
@@ -358,6 +404,8 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       solicitarPedido,
       aprobarPedido,
       rechazarPedido,
+      eliminarPedido,
+      registrarMensajePedido,
       actualizarPedido,
       getPedido,
       addSede,

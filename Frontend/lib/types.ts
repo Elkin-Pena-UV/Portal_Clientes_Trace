@@ -177,6 +177,7 @@ export type AccionBitacora =
   | 'documento_aprobado'
   | 'documento_mensaje'
   | 'documento_modificado'
+  | 'documento_rechazado'
 
 export const ACCION_BITACORA_LABEL: Record<AccionBitacora, string> = {
   comentario_documento: 'COMENTARIO DOCUMENTO',
@@ -184,6 +185,7 @@ export const ACCION_BITACORA_LABEL: Record<AccionBitacora, string> = {
   documento_aprobado: 'DOCUMENTO APROBADO',
   documento_mensaje: 'DOCUMENTO MENSAJE',
   documento_modificado: 'DOCUMENTO MODIFICADO',
+  documento_rechazado: 'DOCUMENTO RECHAZADO',
 }
 
 export interface EventoBitacora {

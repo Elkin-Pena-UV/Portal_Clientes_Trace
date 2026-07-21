@@ -410,7 +410,7 @@ export function Sidebar() {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'hidden md:flex fixed left-0 top-0 z-40 h-screen flex-col border-r border-gray-200 bg-white transition-all duration-300',
+          'hidden md:flex fixed left-0 top-0 z-40 h-screen flex-col border-r border-gray-200 bg-white transition-all duration-300 print:hidden',
           sidebarWidth
         )}
       >
@@ -418,7 +418,12 @@ export function Sidebar() {
       </aside>
 
       {/* Desktop spacing helper */}
-      <div className={cn('hidden md:block', isCollapsed ? 'md:w-16' : 'md:w-56')} />
+      <div
+        className={cn(
+          'hidden md:block print:hidden',
+          isCollapsed ? 'md:w-16' : 'md:w-56'
+        )}
+      />
     </>
   )
 }

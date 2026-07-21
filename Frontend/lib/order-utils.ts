@@ -333,6 +333,41 @@ export function despachoCompleto(pedido: Pedido): boolean {
   return false
 }
 
+/** Requisito pendiente que impide aprobar; `mensaje` se muestra en el botón. */
+export interface BloqueoAprobacion {
+  campo: string
+  mensaje: string
+}
+
+/**
+ * Bloqueos activos para aprobar un pedido, en orden de prioridad: el primero
+ * es el label del botón Aprobar deshabilitado. Lista vacía = puede aprobarse.
+ */
+export function bloqueosAprobacion(pedido: Pedido): BloqueoAprobacion[] {
+  const bloqueos: BloqueoAprobacion[] = []
+  if (pedido.sedeFacturaId == null)
+    bloqueos.push({
+      campo: 'sedeFactura',
+      mensaje: 'Completa la sede de factura para aprobar',
+    })
+  if (pedido.items.length === 0)
+    bloqueos.push({
+      campo: 'productos',
+      mensaje: 'Agrega al menos un producto para aprobar',
+    })
+  if (pedido.items.some((i) => !(i.cantidad > 0)))
+    bloqueos.push({
+      campo: 'cantidades',
+      mensaje: 'Corrige las cantidades para aprobar',
+    })
+  if (!despachoCompleto(pedido))
+    bloqueos.push({
+      campo: 'despacho',
+      mensaje: 'Completa los datos de despacho para aprobar',
+    })
+  return bloqueos
+}
+
 export function pedidoCompleto(pedido: Pedido): boolean {
   return (
     pedido.tipoProducto !== null &&

@@ -10,6 +10,7 @@ import { plazoLabel, totalUnidades, totalesPedido } from '@/lib/order-utils'
 import { formatCOP, formatFecha } from '@/lib/format'
 import { EstadoBadge } from '@/components/pedidos/estado-badge'
 import { EstadoCreditoBadge } from '@/components/pedidos/estado-credito-badge'
+import { ClienteCombobox } from '@/components/ordenes/cliente-combobox'
 import { DatePicker } from '@/components/ordenes/date-picker'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -313,14 +314,6 @@ export function ListadoPedidos({
 
   const columnasVisibles = COLUMNAS.filter((c) => visibles[c.key])
 
-  const clientes = React.useMemo(() => {
-    const porId = new Map<string, string>()
-    pedidos.forEach((p) => porId.set(p.clienteId, p.clienteNombre))
-    return Array.from(porId, ([id, nombre]) => ({ id, nombre })).sort((a, b) =>
-      a.nombre.localeCompare(b.nombre),
-    )
-  }, [pedidos])
-
   // `items` permite que el trigger del select muestre el label, no el value.
   const estadoItems = React.useMemo(
     () => [
@@ -328,13 +321,6 @@ export function ListadoPedidos({
       ...ESTADOS.map((e) => ({ value: e, label: ESTADO_LABEL[e] })),
     ],
     [],
-  )
-  const clienteItems = React.useMemo(
-    () => [
-      { value: 'todos', label: 'Todos' },
-      ...clientes.map((c) => ({ value: c.id, label: c.nombre })),
-    ],
-    [clientes],
   )
   const plazoItems = React.useMemo(
     () => [
@@ -410,23 +396,12 @@ export function ListadoPedidos({
         </FiltroCampo>
 
         <FiltroCampo label="Cliente">
-          <Select
-            items={clienteItems}
+          <ClienteCombobox
             value={clienteId}
-            onValueChange={(v) => setClienteId(v ?? 'todos')}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              {clientes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onChange={setClienteId}
+            includeAll
+            className="w-52"
+          />
         </FiltroCampo>
 
         <FiltroCampo label="Desde">

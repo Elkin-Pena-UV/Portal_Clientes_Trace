@@ -384,7 +384,7 @@ export function PedidoCard({
                       value={d.ordenCompra}
                       onChange={(ev) =>
                         setDespacho({
-                          ordenCompra: ev.target.value.replace(/\D/g, '').slice(0, 15),
+                          ordenCompra: ev.target.value.slice(0, 15),
                         })
                       }
                       aria-invalid={showErrors && !d.ordenCompra.trim()}

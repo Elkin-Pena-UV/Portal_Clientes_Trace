@@ -1,8 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Download, Eye, FileSpreadsheet, FileText } from 'lucide-react'
+import { Download, Eye, FileSpreadsheet, FileText, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { CalificarDialog, type Calificacion } from '@/components/documentos/calificar-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -61,6 +62,9 @@ const logisticos: DocumentoLogistico[] = [
 
 const money = (value: number) => `${value < 0 ? '-' : ''}$${Math.abs(value).toLocaleString('es-CO')}`
 
+// D1: "Califícanos" solo aparece en remisiones con firma validada. Fácil de ajustar aquí.
+const puedeCalificar = (item: DocumentoLogistico) => item.tipo === 'Remisión' && item.firmaDigital === 'Validada'
+
 function downloadText(name: string, content: string) {
   const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }))
   const anchor = document.createElement('a')
@@ -74,6 +78,15 @@ export function DocumentsWorkspace() {
   const [tab, setTab] = useState('financieros')
   const [selected, setSelected] = useState<string[]>([])
   const [preview, setPreview] = useState<DocumentoLogistico | null>(null)
+  const [calificar, setCalificar] = useState<DocumentoLogistico | null>(null)
+  // D4: calificación única. Sin campo en el modelo mock, se marca en estado local (se reinicia al recargar).
+  const [calificados, setCalificados] = useState<string[]>([])
+
+  const enviarCalificacion = (documento: string) => (data: { calificacion: Calificacion; comentario: string }) => {
+    // TODO: conectar endpoint de calificación (no inventar endpoint SIESA).
+    console.log('Calificación enviada', { documento, ...data })
+    setCalificados((current) => (current.includes(documento) ? current : [...current, documento]))
+  }
 
   const visibleIds = useMemo(
     () => tab === 'financieros' ? financieros.map((item) => item.documento) : logisticos.map((item) => item.documento),
@@ -143,11 +156,11 @@ export function DocumentsWorkspace() {
 
           <TabsContent value="logisticos" className="pt-4">
             <div className="hidden md:block">
-              <LogisticsTable selected={selected} allSelected={allSelected} onToggle={toggle} onToggleAll={(checked) => setSelected(checked ? visibleIds : [])} onPreview={setPreview} />
+              <LogisticsTable selected={selected} allSelected={allSelected} onToggle={toggle} onToggleAll={(checked) => setSelected(checked ? visibleIds : [])} onPreview={setPreview} onCalificar={setCalificar} calificados={calificados} />
             </div>
             <div className="flex flex-col gap-3 md:hidden">
               {logisticos.map((item) => (
-                <LogisticsCard key={item.documento} item={item} checked={selected.includes(item.documento)} onToggle={(checked) => toggle(item.documento, checked)} onPreview={() => setPreview(item)} />
+                <LogisticsCard key={item.documento} item={item} checked={selected.includes(item.documento)} onToggle={(checked) => toggle(item.documento, checked)} onPreview={() => setPreview(item)} onCalificar={() => setCalificar(item)} calificado={calificados.includes(item.documento)} />
               ))}
             </div>
           </TabsContent>
@@ -167,6 +180,18 @@ export function DocumentsWorkspace() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {calificar && (
+        <CalificarDialog
+          open={Boolean(calificar)}
+          onOpenChange={(open) => !open && setCalificar(null)}
+          documento={calificar.documento}
+          pedido={calificar.pedido}
+          emision={calificar.emision}
+          valor={money(calificar.valor)}
+          onSubmit={enviarCalificacion(calificar.documento)}
+        />
+      )}
     </Card>
   )
 }
@@ -183,14 +208,14 @@ function FinancialTable({ selected, allSelected, onToggle, onToggleAll }: { sele
   return <Table><TableHeader><TableRow className="border-b-2 border-[#00359a]"><TableHead><Checkbox aria-label="Seleccionar todas las facturas" checked={allSelected} onCheckedChange={(checked) => onToggleAll(Boolean(checked))} /></TableHead>{['EMISIÓN', 'FN', 'DOCUMENTO', 'PEDIDO', 'ORDEN DE COMPRA', 'NIT', 'VALOR', ''].map((heading) => <TableHead key={heading} className="whitespace-nowrap text-xs font-semibold text-[#00359a]">{heading}</TableHead>)}</TableRow></TableHeader><TableBody>{financieros.map((item) => <TableRow key={item.documento}><TableCell><Checkbox aria-label={`Seleccionar ${item.documento}`} checked={selected.includes(item.documento)} onCheckedChange={(checked) => onToggle(item.documento, Boolean(checked))} /></TableCell><TableCell className="whitespace-nowrap">{item.emision}</TableCell><TableCell><TypeBadge type={item.tipo} /></TableCell><TableCell><p className="font-semibold">{item.documento}</p><p className="text-xs text-muted-foreground">{item.descripcion}</p></TableCell><TableCell className="whitespace-nowrap">{item.pedido}</TableCell><TableCell className="whitespace-nowrap">{item.ordenCompra}</TableCell><TableCell className="whitespace-nowrap">{item.nit}</TableCell><TableCell className={cn('whitespace-nowrap font-semibold', item.valor < 0 && 'text-destructive')}>{money(item.valor)}</TableCell><TableCell><Button variant="ghost" size="sm" onClick={() => downloadText(`${item.documento}.pdf`, item.documento)}><Download data-icon="inline-start" />PDF</Button></TableCell></TableRow>)}</TableBody></Table>
 }
 
-function LogisticsTable({ selected, allSelected, onToggle, onToggleAll, onPreview }: { selected: string[]; allSelected: boolean; onToggle: (id: string, checked: boolean) => void; onToggleAll: (checked: boolean) => void; onPreview: (item: DocumentoLogistico) => void }) {
-  return <Table><TableHeader><TableRow className="border-b-2 border-[#00359a]"><TableHead><Checkbox aria-label="Seleccionar todos los documentos logísticos" checked={allSelected} onCheckedChange={(checked) => onToggleAll(Boolean(checked))} /></TableHead>{['EMISIÓN', 'TIPO', 'DOCUMENTO', 'PEDIDO', 'FIRMA DIGITAL', 'VALOR', ''].map((heading) => <TableHead key={heading} className="whitespace-nowrap text-xs font-semibold text-[#00359a]">{heading}</TableHead>)}</TableRow></TableHeader><TableBody>{logisticos.map((item) => <TableRow key={item.documento}><TableCell><Checkbox aria-label={`Seleccionar ${item.documento}`} checked={selected.includes(item.documento)} onCheckedChange={(checked) => onToggle(item.documento, Boolean(checked))} /></TableCell><TableCell className="whitespace-nowrap">{item.emision}</TableCell><TableCell><Badge className={item.tipo === 'Remisión' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}>{item.tipo}</Badge></TableCell><TableCell className="font-semibold">{item.documento}</TableCell><TableCell>{item.pedido}</TableCell><TableCell><SignatureBadge state={item.firmaDigital} /></TableCell><TableCell className={cn('whitespace-nowrap font-semibold', item.valor < 0 && 'text-destructive')}>{money(item.valor)}</TableCell><TableCell><Button variant="ghost" size="sm" onClick={() => onPreview(item)}><Eye data-icon="inline-start" />Vista previa</Button></TableCell></TableRow>)}</TableBody></Table>
+function LogisticsTable({ selected, allSelected, onToggle, onToggleAll, onPreview, onCalificar, calificados }: { selected: string[]; allSelected: boolean; onToggle: (id: string, checked: boolean) => void; onToggleAll: (checked: boolean) => void; onPreview: (item: DocumentoLogistico) => void; onCalificar: (item: DocumentoLogistico) => void; calificados: string[] }) {
+  return <Table><TableHeader><TableRow className="border-b-2 border-[#00359a]"><TableHead><Checkbox aria-label="Seleccionar todos los documentos logísticos" checked={allSelected} onCheckedChange={(checked) => onToggleAll(Boolean(checked))} /></TableHead>{['EMISIÓN', 'TIPO', 'DOCUMENTO', 'PEDIDO', 'FIRMA DIGITAL', 'VALOR', ''].map((heading) => <TableHead key={heading} className="whitespace-nowrap text-xs font-semibold text-[#00359a]">{heading}</TableHead>)}</TableRow></TableHeader><TableBody>{logisticos.map((item) => <TableRow key={item.documento}><TableCell><Checkbox aria-label={`Seleccionar ${item.documento}`} checked={selected.includes(item.documento)} onCheckedChange={(checked) => onToggle(item.documento, Boolean(checked))} /></TableCell><TableCell className="whitespace-nowrap">{item.emision}</TableCell><TableCell><Badge className={item.tipo === 'Remisión' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}>{item.tipo}</Badge></TableCell><TableCell className="font-semibold">{item.documento}</TableCell><TableCell>{item.pedido}</TableCell><TableCell><SignatureBadge state={item.firmaDigital} /></TableCell><TableCell className={cn('whitespace-nowrap font-semibold', item.valor < 0 && 'text-destructive')}>{money(item.valor)}</TableCell><TableCell><div className="flex items-center justify-end gap-1"><Button variant="ghost" size="sm" onClick={() => onPreview(item)}><Eye data-icon="inline-start" />Vista previa</Button>{puedeCalificar(item) && <Button variant="ghost" size="sm" disabled={calificados.includes(item.documento)} onClick={() => onCalificar(item)}><Star data-icon="inline-start" />{calificados.includes(item.documento) ? 'Calificado' : 'Califícanos'}</Button>}</div></TableCell></TableRow>)}</TableBody></Table>
 }
 
 function FinancialCard({ item, checked, onToggle }: { item: DocumentoFinanciero; checked: boolean; onToggle: (checked: boolean) => void }) {
   return <article className="relative flex flex-col gap-3 rounded-lg border p-4"><Checkbox className="absolute right-4 top-4" aria-label={`Seleccionar ${item.documento}`} checked={checked} onCheckedChange={(value) => onToggle(Boolean(value))} /><div className="flex items-center gap-2 pr-8"><TypeBadge type={item.tipo} /><span className="text-xs text-muted-foreground">{item.emision}</span></div><div><p className="font-semibold text-[#00359a]">{item.documento}</p><p className="text-xs text-muted-foreground">{item.descripcion}</p></div><dl className="grid grid-cols-2 gap-2 text-sm"><dt className="text-muted-foreground">Pedido</dt><dd className="text-right font-medium">{item.pedido}</dd><dt className="text-muted-foreground">Orden de compra</dt><dd className="text-right font-medium">{item.ordenCompra}</dd><dt className="text-muted-foreground">NIT</dt><dd className="text-right">{item.nit}</dd><dt className="text-muted-foreground">Valor</dt><dd className={cn('text-right font-semibold', item.valor < 0 && 'text-destructive')}>{money(item.valor)}</dd></dl><Button variant="outline" onClick={() => downloadText(`${item.documento}.pdf`, item.documento)}><Download data-icon="inline-start" />Descargar PDF</Button></article>
 }
 
-function LogisticsCard({ item, checked, onToggle, onPreview }: { item: DocumentoLogistico; checked: boolean; onToggle: (checked: boolean) => void; onPreview: () => void }) {
-  return <article className="relative flex flex-col gap-3 rounded-lg border p-4"><Checkbox className="absolute right-4 top-4" aria-label={`Seleccionar ${item.documento}`} checked={checked} onCheckedChange={(value) => onToggle(Boolean(value))} /><div className="flex items-center gap-2 pr-8"><Badge className={item.tipo === 'Remisión' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}>{item.tipo}</Badge><span className="text-xs text-muted-foreground">{item.emision}</span></div><p className="font-semibold text-[#00359a]">{item.documento}</p><dl className="grid grid-cols-2 gap-2 text-sm"><dt className="text-muted-foreground">Pedido</dt><dd className="text-right font-medium">{item.pedido}</dd><dt className="text-muted-foreground">Firma digital</dt><dd className="flex justify-end"><SignatureBadge state={item.firmaDigital} /></dd><dt className="text-muted-foreground">Valor</dt><dd className={cn('text-right font-semibold', item.valor < 0 && 'text-destructive')}>{money(item.valor)}</dd></dl><Button variant="outline" onClick={onPreview}><Eye data-icon="inline-start" />Vista previa</Button></article>
+function LogisticsCard({ item, checked, onToggle, onPreview, onCalificar, calificado }: { item: DocumentoLogistico; checked: boolean; onToggle: (checked: boolean) => void; onPreview: () => void; onCalificar: () => void; calificado: boolean }) {
+  return <article className="relative flex flex-col gap-3 rounded-lg border p-4"><Checkbox className="absolute right-4 top-4" aria-label={`Seleccionar ${item.documento}`} checked={checked} onCheckedChange={(value) => onToggle(Boolean(value))} /><div className="flex items-center gap-2 pr-8"><Badge className={item.tipo === 'Remisión' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}>{item.tipo}</Badge><span className="text-xs text-muted-foreground">{item.emision}</span></div><p className="font-semibold text-[#00359a]">{item.documento}</p><dl className="grid grid-cols-2 gap-2 text-sm"><dt className="text-muted-foreground">Pedido</dt><dd className="text-right font-medium">{item.pedido}</dd><dt className="text-muted-foreground">Firma digital</dt><dd className="flex justify-end"><SignatureBadge state={item.firmaDigital} /></dd><dt className="text-muted-foreground">Valor</dt><dd className={cn('text-right font-semibold', item.valor < 0 && 'text-destructive')}>{money(item.valor)}</dd></dl><div className="flex flex-col gap-2"><Button variant="outline" onClick={onPreview}><Eye data-icon="inline-start" />Vista previa</Button>{puedeCalificar(item) && <Button variant="outline" disabled={calificado} onClick={onCalificar}><Star data-icon="inline-start" />{calificado ? 'Calificado' : 'Califícanos'}</Button>}</div></article>
 }

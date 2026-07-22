@@ -136,7 +136,7 @@ export function FilterDialog({
             <label className="text-sm font-medium text-gray-700 mb-1.5 block">
               Punto de entrega
             </label>
-            <Select value={filters.location} onValueChange={(value) => handleFilterChange('location', value)}>
+            <Select value={filters.location} onValueChange={(value) => handleFilterChange('location', value ?? '')}>
               <SelectTrigger className="w-full border-gray-300 rounded-lg">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
@@ -156,7 +156,7 @@ export function FilterDialog({
             <label className="text-sm font-medium text-gray-700 mb-1.5 block">
               Estado
             </label>
-            <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+            <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value ?? '')}>
               <SelectTrigger className="w-full border-gray-300 rounded-lg">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>

@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Building2, Lock } from 'lucide-react'
 import { usePortal } from '@/components/portal-provider'
 import { plazoLabel } from '@/lib/order-utils'
+import { ClienteCombobox } from '@/components/ordenes/cliente-combobox'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -46,13 +47,8 @@ export function NuevoPedidoCabecera({
   onChangePlazo,
   showErrors,
 }: NuevoPedidoCabeceraProps) {
-  const { clientes, getCliente } = usePortal()
+  const { getCliente } = usePortal()
   const cliente = clienteId ? getCliente(clienteId) : undefined
-
-  const clienteItems = React.useMemo(
-    () => clientes.map((c) => ({ value: c.id, label: c.nombre })),
-    [clientes],
-  )
 
   const esContado = cliente?.formaPago === 'Contado'
   const plazoItems = React.useMemo(
@@ -78,27 +74,13 @@ export function NuevoPedidoCabecera({
         {/* CLIENTE */}
         <div className="flex min-w-0 flex-col gap-1.5">
           <Label className={LABEL_CLASS}>Cliente</Label>
-          <Select
-            items={clienteItems}
-            value={clienteId}
-            onValueChange={(v) => v && onSelectCliente(v as string)}
-          >
-            <SelectTrigger
-              className="w-full"
-              aria-invalid={showErrors && !clienteId}
-            >
-              <SelectValue placeholder="Selecciona el cliente" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {clienteItems.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>
-                    {c.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <ClienteCombobox
+            value={clienteId ?? ''}
+            onChange={onSelectCliente}
+            placeholder="Selecciona el cliente"
+            invalid={showErrors && !clienteId}
+            className="w-full"
+          />
           {showErrors && !clienteId && (
             <span className="text-sm font-medium text-destructive">
               Selecciona un cliente.

@@ -2,9 +2,9 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Columns3, Eye, Pencil } from 'lucide-react'
+import { Columns3, Eye, Pencil, Search } from 'lucide-react'
 import type { EstadoPedido, Pedido, PuntoEntrega } from '@/lib/types'
-import { ESTADO_LABEL } from '@/lib/types'
+import { ESTADO_LABEL, PLAZOS } from '@/lib/types'
 import { usePortal } from '@/components/portal-provider'
 import { plazoLabel, totalUnidades, totalesPedido } from '@/lib/order-utils'
 import { formatCOP, formatFecha } from '@/lib/format'
@@ -14,6 +14,11 @@ import { DatePicker } from '@/components/ordenes/date-picker'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group'
 import {
   Popover,
   PopoverContent,
@@ -264,6 +269,8 @@ export function ListadoPedidos({
     estadoInicial ?? 'todos',
   )
   const [clienteId, setClienteId] = React.useState<string>('todos')
+  const [pvcQuery, setPvcQuery] = React.useState('')
+  const [plazo, setPlazo] = React.useState<string>('todos')
   const [desde, setDesde] = React.useState<string | null>(null)
   const [hasta, setHasta] = React.useState<string | null>(null)
 
@@ -329,26 +336,43 @@ export function ListadoPedidos({
     ],
     [clientes],
   )
+  const plazoItems = React.useMemo(
+    () => [
+      { value: 'todos', label: 'Todos' },
+      ...PLAZOS.map((p) => ({ value: p.codigo, label: `${p.codigo} : ${p.nombre}` })),
+    ],
+    [],
+  )
 
   const filtrados = React.useMemo(() => {
+    const q = pvcQuery.trim().toLowerCase()
     return pedidos
       .filter((p) => {
         if (estado !== 'todos' && p.estado !== estado) return false
         if (clienteId !== 'todos' && p.clienteId !== clienteId) return false
+        if (plazo !== 'todos' && p.plazoCodigo !== plazo) return false
+        if (q && !(p.pvc ?? '').toLowerCase().includes(q)) return false
         const fecha = p.fechaCreacion.slice(0, 10)
         if (desde && fecha < desde) return false
         if (hasta && fecha > hasta) return false
         return true
       })
       .sort((a, b) => b.fechaCreacion.localeCompare(a.fechaCreacion))
-  }, [pedidos, estado, clienteId, desde, hasta])
+  }, [pedidos, estado, clienteId, plazo, pvcQuery, desde, hasta])
 
   const hayFiltros =
-    estado !== 'todos' || clienteId !== 'todos' || desde !== null || hasta !== null
+    estado !== 'todos' ||
+    clienteId !== 'todos' ||
+    plazo !== 'todos' ||
+    pvcQuery.trim() !== '' ||
+    desde !== null ||
+    hasta !== null
 
   const limpiarFiltros = () => {
     setEstado('todos')
     setClienteId('todos')
+    setPlazo('todos')
+    setPvcQuery('')
     setDesde(null)
     setHasta(null)
   }
@@ -423,6 +447,39 @@ export function ListadoPedidos({
             permitirPasadas
             placeholder="Cualquier fecha"
           />
+        </FiltroCampo>
+
+        <FiltroCampo label="PVC">
+          <InputGroup className="w-44">
+            <InputGroupInput
+              placeholder="Buscar PVC…"
+              value={pvcQuery}
+              onChange={(e) => setPvcQuery(e.target.value)}
+            />
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
+        </FiltroCampo>
+
+        <FiltroCampo label="Plazo">
+          <Select
+            items={plazoItems}
+            value={plazo}
+            onValueChange={(v) => setPlazo(v ?? 'todos')}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {PLAZOS.map((p) => (
+                <SelectItem key={p.codigo} value={p.codigo}>
+                  {p.codigo} : {p.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </FiltroCampo>
 
         <div className="ml-auto flex items-center gap-2">
